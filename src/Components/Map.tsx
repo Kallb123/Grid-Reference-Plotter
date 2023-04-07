@@ -20,7 +20,7 @@ const Map = (props: Props) => {
         />
         <Marker position={position}>
           <Popup>
-            A pretty CSS3 popup. <br /> Easily customizable. {{ test }}
+            A pretty CSS3 popup. <br /> Easily customizable. <span>{ test }</span>
           </Popup>
         </Marker>
       </MapContainer>
