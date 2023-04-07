@@ -1,7 +1,6 @@
 import { LatLngTuple } from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
-
-const position : LatLngTuple = [51.505, -0.09]
+import OsGridRef from '../gridref-to-latlng';
 
 interface Props {
     test: string
@@ -11,6 +10,11 @@ const Map = (props: Props) => {
     const {
         test
     } = props;
+
+    let parsedOS = OsGridRef.parse("NU 12765 42058");
+    let convertedLatLng = OsGridRef.osGridToLatLong(parsedOS);
+
+    const position : LatLngTuple = [convertedLatLng.lat, convertedLatLng.lon]
 
     return (
       <MapContainer center={position} zoom={13} scrollWheelZoom={false} style={{height: "500px"}}>
