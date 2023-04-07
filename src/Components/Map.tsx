@@ -1,12 +1,16 @@
 import { LatLngTuple } from 'leaflet';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 
 const position : LatLngTuple = [51.505, -0.09]
 
-interface Props {};
+interface Props {
+    test: string
+};
 
 const Map = (props: Props) => {
-    const {} = props;
+    const {
+        test
+    } = props;
 
     return (
       <MapContainer center={position} zoom={13} scrollWheelZoom={false} style={{height: "500px"}}>
@@ -16,7 +20,7 @@ const Map = (props: Props) => {
         />
         <Marker position={position}>
           <Popup>
-            A pretty CSS3 popup. <br /> Easily customizable.
+            A pretty CSS3 popup. <br /> Easily customizable. {{ test }}
           </Popup>
         </Marker>
       </MapContainer>
