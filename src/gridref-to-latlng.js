@@ -245,7 +245,6 @@ if (typeof String.prototype.padLz == 'undefined') {
 /*   - www.ordnancesurvey.co.uk/docs/support/guide-coordinate-systems-great-britain.pdf           */
 /*                                                                                                */
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-'use strict';
 
 
 /**
@@ -463,9 +462,9 @@ Vector3d.prototype.applyTransform = function(t)   {
  * @param   {number} [dp=0|2|4] - Number of decimal places to use - default 0 for dms, 2 for dm, 4 for d.
  * @returns {string} Comma-separated latitude/longitude.
  */
-LatLonE.prototype.toString = function(format, dp) {
-    return Geo.toLat(this.lat, format, dp) + ', ' + Geo.toLon(this.lon, format, dp);
-}
+// LatLonE.prototype.toString = function(format, dp) {
+//     return Geo.toLat(this.lat, format, dp) + ', ' + Geo.toLon(this.lon, format, dp);
+// }
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -493,7 +492,6 @@ if (typeof Number.prototype.toDegrees == 'undefined') {
 /*   - motion vector on Earth's surface                                                           */
 /*   - etc                                                                                        */
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-'use strict';
 
 
 /**
