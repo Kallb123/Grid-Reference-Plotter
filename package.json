@@ -2,7 +2,7 @@
   "name": "grid-reference-plotter",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://kallb123.github.io/grid-reference-plotter",
+  "homepage": "https://kallb123.github.io/Grid-Reference-Plotter/",
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
