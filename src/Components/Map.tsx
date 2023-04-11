@@ -3,15 +3,17 @@ import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import OsGridRef from '../gridref-to-latlng';
 
 interface Props {
-    test: string
+  gridRef: string,
+  scale: number,
 };
 
 const Map = (props: Props) => {
     const {
-        test
+      gridRef,
+      scale
     } = props;
 
-    let parsedOS = OsGridRef.parse("NU 12765 42058");
+    let parsedOS = OsGridRef.parse(gridRef);
     let convertedLatLng = OsGridRef.osGridToLatLong(parsedOS);
 
     const position : LatLngTuple = [convertedLatLng.lat, convertedLatLng.lon]
@@ -24,7 +26,7 @@ const Map = (props: Props) => {
         />
         <Marker position={position}>
           <Popup>
-            A pretty CSS3 popup. <br /> Easily customizable. <span>{ test }</span>
+            A pretty CSS3 popup. <br /> Easily customizable. <span>{ gridRef }</span>
           </Popup>
         </Marker>
       </MapContainer>
