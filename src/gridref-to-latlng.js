@@ -1,3 +1,4 @@
+/* eslint-disable */
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 /*  Ordnance Survey Grid Reference functions  (c) Chris Veness 2005-2014                          */
 /*   - www.movable-type.co.uk/scripts/gridref.js                                                  */
