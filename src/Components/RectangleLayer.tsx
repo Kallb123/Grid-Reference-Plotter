@@ -15,7 +15,7 @@ const RectangleLayer = (props: Props) => {
 
     useEffect(() => {
       mapLink.fitBounds(rectangle);
-    }, [rectangle])
+    }, [mapLink, rectangle])
 
     const blackOptions = { color: 'black' };
 
