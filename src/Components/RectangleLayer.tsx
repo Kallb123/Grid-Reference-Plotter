@@ -1,5 +1,5 @@
 import { LatLngBoundsLiteral } from "leaflet";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMap } from "react-leaflet";
 import SingleRectangle from "./SingleRectangle";
 

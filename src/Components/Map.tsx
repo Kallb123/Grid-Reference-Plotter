@@ -1,8 +1,5 @@
-import { LatLngBoundsLiteral, LatLngTuple } from 'leaflet';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
-import OsGridRef from '../gridref-to-latlng';
-
-import { Position, projectBearingDistance } from "aviation-math";
+import { LatLngBoundsLiteral } from 'leaflet';
+import { MapContainer, TileLayer } from 'react-leaflet';
 import RectangleLayer from './RectangleLayer';
 
 interface Props {
