@@ -25,7 +25,6 @@ function App() {
         skip_empty_lines: true,
         delimiter: ','
       });
-      console.log(data);
 
       const parsedData = data.map(row => {
         let parsedOS = OsGridRef.parse(row[0]);

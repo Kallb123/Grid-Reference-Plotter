@@ -13,7 +13,6 @@ const Map = (props: Props) => {
 
     let boundsRectangle : LatLngBoundsLiteral | undefined = undefined;
     if (rectangles && rectangles.length > 0) {
-      console.log(rectangles);
       boundsRectangle = [
           [   Math.min(...rectangles.map((rect => rect[0][0]))),
               Math.min(...rectangles.map((rect => rect[0][1])))
