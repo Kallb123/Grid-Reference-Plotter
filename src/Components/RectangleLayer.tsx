@@ -21,14 +21,17 @@ const RectangleLayer = (props: Props) => {
             [   Math.min(...rectangles.map((rect => rect[0][0]))),
                 Math.min(...rectangles.map((rect => rect[0][1])))
             ],
-            [   Math.min(...rectangles.map((rect => rect[1][0]))),
-                Math.min(...rectangles.map((rect => rect[1][1])))
+            [   Math.max(...rectangles.map((rect => rect[1][0]))),
+                Math.max(...rectangles.map((rect => rect[1][1])))
             ],
         ];
+        console.log("bounds effect:", boundsRectangle);
         mapLink.fitBounds(boundsRectangle);
+        setTimeout(() => {
+            console.log("bounds timeout:", boundsRectangle);
+            mapLink.fitBounds(boundsRectangle);
+        }, 100);
     }, [mapLink, rectangles])
-
-
 
     return (
         <>

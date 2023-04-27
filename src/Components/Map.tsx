@@ -11,11 +11,21 @@ const Map = (props: Props) => {
       rectangles
     } = props;
 
-    let center = undefined;
-    if (rectangles && rectangles[0] && rectangles[0][0]) center = rectangles[0][0];
+    let boundsRectangle : LatLngBoundsLiteral | undefined = undefined;
+    if (rectangles && rectangles.length > 0) {
+      console.log(rectangles);
+      boundsRectangle = [
+          [   Math.min(...rectangles.map((rect => rect[0][0]))),
+              Math.min(...rectangles.map((rect => rect[0][1])))
+          ],
+          [   Math.max(...rectangles.map((rect => rect[1][0]))),
+              Math.max(...rectangles.map((rect => rect[1][1])))
+          ],
+      ];
+    }
 
     return (
-      <MapContainer center={center} zoom={13} scrollWheelZoom={false} style={{height: "500px"}}>
+      <MapContainer bounds={boundsRectangle} scrollWheelZoom={true} style={{height: "500px"}}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

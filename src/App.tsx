@@ -57,7 +57,9 @@ function App() {
   return (
     <div className="App">
       <Map rectangles={rectangles}></Map>
-      <input type='file' onChange={e => {if (!e.currentTarget.files) return; return processNewFile(e.currentTarget.files[0])}} />
+      <input type='file'
+        onChange={e => {if (!e.currentTarget.files) return; return processNewFile(e.currentTarget.files[0])}}
+        onClick={e => (e.currentTarget.value = '')}  />
     </div>
   );
 }
