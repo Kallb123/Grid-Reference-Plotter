@@ -1,46 +1,26 @@
-# Getting Started with Create React App
+# Grid Reference Plotter
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Plot UK aerial photography footprints on a map.
 
-## Available Scripts
+When you buy aerial photography in the UK, suppliers describe each available frame with an
+Ordnance Survey grid reference and some camera details — focal length, film format, flying
+height or scale. That tells you very little about what the photograph actually shows. This
+tool takes the supplier's list, works out the ground each frame covers, and draws them all on
+a map so you can see which ones include the place you care about.
 
-In the project directory, you can run:
+Everything runs in your browser. The files you load are never uploaded anywhere.
 
-### `npm start`
+## Status
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+**Rebuilding.** The repository has been reset and is being rewritten as a Vue 3 application;
+there is no runnable app in this branch yet.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — what is being built and how
+- [`AGENTS.md`](AGENTS.md) — how to work in this repository
+- [`archive/MATHS.md`](archive/MATHS.md) — the coordinate conversions and footprint geometry
+- [`archive/`](archive/) — the previous React implementation, retired
 
-### `npm test`
+## Licence
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+Apache-2.0. See [LICENSE](LICENSE); see [`archive/README.md`](archive/README.md) for the
+third-party code kept for reference.
