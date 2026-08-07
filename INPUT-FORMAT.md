@@ -34,8 +34,14 @@ for.
 
 Sheets are named after an internal report code, truncated by Excel to 31 characters — the
 sample's is `R2.4a - Full single listing wit`. **Do not identify sheets by tab name.**
-Identify them by their header row: a sheet with `Centre point` and `Scale 1:` is verticals; a
-sheet with `Map Reference` is obliques.
+Identify them by their header row, and specifically by **which grid reference column they
+carry**: `Centre point` is verticals, `Map Reference` is obliques.
+
+Classification asks no more than that on purpose. Whether a listing is *usable* is a separate
+question — a verticals sheet still needs a scale and a film format to yield a footprint — and it
+is better answered per sheet by the row parser, which can name the column at fault. Requiring
+`Scale 1:` to recognise a verticals sheet would turn one renamed column into a whole discarded
+tab and a vague warning, rather than twenty-nine frames and a one-line fix.
 
 The sheet is a formatted report, not a data table:
 
@@ -47,11 +53,14 @@ The sheet is a formatted report, not a data table:
 | **13** | **Header row** |
 | 14 | Header continuation — only `(in inches)`, under `Focal length` |
 | **15 – 43** | **Data**, one row per frame (29 in the sample) |
-| 44–45 | `Total Sorties` / `Total Frames` trailer, values two columns right of the label |
+| 44–45 | `Total Sorties ` / `Total Frames` trailer, values two columns right of the label |
 
-So: find the header row by content, take data until a row whose first populated cell reads
-`Total …` or until the row is empty. Do not assume fixed row numbers — a different report
-template will move them.
+The trailer's two columns are not an offset to hard-code: the label is itself merged across `O:P`,
+so its value lands in `Q`, the next populated cell. Read the first number to the right of the
+label instead. (`Total Sorties ` has a trailing space, like `Focal length ` — see §3.)
+
+So: find the header row by content, and take data until the `Total …` trailer or the end of the
+sheet. Do not assume fixed row numbers — a different report template will move them.
 
 ## 3. Verticals sheet columns
 
@@ -71,9 +80,15 @@ so **map columns by header text, not by index**.
 | J | `Date` | **text** | `13 JUN 1967` | `dd MMM yyyy` as a string, *not* an Excel date. Merged J:L |
 | M | `Sortie quality` | text | `A` | Assigned by the organisation that flew it. Merged M:N |
 | O | `Scale 1:` | number | `10500` | Scale **denominator**. See the caveat in §4 |
-| P | `Focal length` `(in inches)` | number | `6`, `12` | **Inches**, per the row-14 continuation |
+| P | `Focal length ` `(in inches)` | number | `6`, `12` | **Inches**, per the row-14 continuation. Trailing space in the header |
 | Q | `Film details (in inches)` | text | `Black and White 9 x 9` | Type and format. Merged Q:R |
 | S | `Film held by` | text | `NMR` | Where the negative lives |
+
+Header whitespace and punctuation are noise and vary within a single row: `Library  number` has a
+double space, `Focal length ` and `Total Sorties ` trailing ones, `Scale 1:` a colon, and
+`Film details (in inches)` a parenthesised qualifier that a template could equally put in a
+continuation row. Match headers with all of that folded away — but read the unit out of the
+qualifier before discarding it, or a 6″ lens becomes 6 mm.
 
 Sample coverage: 29 frames, scales 1:2500 to 1:12000, focal lengths 6″ and 12″, every frame
 `9 x 9` inches, dates 1960–2009.
@@ -191,6 +206,26 @@ turning into links.
    belong in the detail panel and in any export.
 6. **Skip the trailer rows**, and cross-check the parsed count against `Total Frames` as a
    free validation of the parse.
+
+### 7.1 What the reader actually does
+
+`src/io/readWorkbook.ts` implements the above. Its rules, so a future change has something to
+change *against*:
+
+| Situation | What happens |
+| --- | --- |
+| Banner rows above the header | Skipped: the header row is the first row matching three or more known column headers |
+| Header continuation row | Folded into the header above, so `Focal length ` + `(in inches)` reads as one header and the unit is not lost |
+| Blank row *inside* the listing | Skipped, and reading continues. Stopping there would silently lose every frame below it |
+| The header block repeated further down | Skipped — a long report may reprint it, and that is not a bad row |
+| `Total Sorties` / `Total Frames` | Ends the listing; the value is the first number to the right of the label |
+| A row below the trailer | Not read, and reported as a warning. Silently dropping it is how frames go missing |
+| A sheet with no recognisable header | Skipped with a warning naming what a listing's headers look like |
+| Any other unrecognised row | Treated as data, and so reported per row with its line number and reason |
+
+The last two lines are the point: **the reader guesses at nothing and drops nothing quietly.**
+A row it cannot make sense of becomes a `ParseIssue` against its own line number, and the other
+forty-nine frames still reach the map.
 
 ## 8. Still unknown
 

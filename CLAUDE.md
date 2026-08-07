@@ -12,8 +12,8 @@ For the coordinate and photogrammetry maths, read [`archive/MATHS.md`](archive/M
 
 ## Orientation
 
-The Vue 3 + Vite scaffold and the pure domain layer exist; `src/io/`, the map and the rest of
-the UI do not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
+The Vue 3 + Vite scaffold, the pure domain layer and the workbook reader (`src/io/`) exist; the
+map and the rest of the UI do not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
 
 ## Notes for this codebase
 

@@ -62,6 +62,10 @@ export interface Provenance {
   /** `"P"` = print held, `"N"` = no print. Other codes are possible. */
   held?: string
   filmHeldBy?: string
+  /** Oblique listings only: the archive's per-photograph reference. See INPUT-FORMAT.md §6. */
+  photoReference?: string
+  /** Oblique listings only: the reference assigned by the original source. */
+  originalNumber?: string
 }
 
 /** A vertical frame: scale and film format are known, so a ground footprint is derivable. */
@@ -140,6 +144,12 @@ export interface ParseIssue {
   line: number
   /** Plain-English explanation the UI can show as-is. */
   reason: string
+  /**
+   * `'error'`, the default, means the row produced no record — a frame is missing from the map.
+   * `'warning'` means the row was kept but something about it is worth showing: a redundant
+   * field that could not be read, or a sheet that disagrees with its own totals.
+   */
+  severity?: 'error' | 'warning'
   /** Sheet the row came from, where the source has more than one. */
   sheet?: string
   /** The offending value or row, for the detail view. */
