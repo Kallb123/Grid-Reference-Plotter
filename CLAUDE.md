@@ -5,6 +5,7 @@ conventions, testing, and the domain rules that produce wrong answers when ignor
 applies to you in full; this file only adds Claude-specific notes.
 
 For what the app is and how it is designed, read [`ARCHITECTURE.md`](ARCHITECTURE.md).
+For the supplier file format, read [`INPUT-FORMAT.md`](INPUT-FORMAT.md).
 For the coordinate and photogrammetry maths, read [`archive/MATHS.md`](archive/MATHS.md).
 
 ## Orientation
@@ -24,6 +25,11 @@ yet — the Vue 3 + Vite scaffold is the first job. Don't go looking for `src/`.
   reference, not a dependency.
 - **`src/domain/` stays pure.** If a change adds a Vue, DOM, or Leaflet import under
   `src/domain/`, it is in the wrong file.
-- **Where the format is unknown, say so.** The supplier file format in `ARCHITECTURE.md` §7
-  is an informed guess. Extending it is fine; quietly hard-coding a different guess is not —
-  update the doc in the same change.
+- **The input format is documented from a real sample.** `INPUT-FORMAT.md` records what was
+  observed in a Historic England result set and what is only inferred from the supplier's
+  guide — the oblique sheet layout is the latter. Keep that distinction when you extend it,
+  and update the document in the same change as the parser.
+- **Don't invent a footprint that isn't in the data.** Obliques carry no scale, focal length,
+  height or bearing. A point is the honest answer; a plausible-looking trapezoid is not.
+- **Supplier files stay out of the repository.** They are customer enquiry data. Build test
+  fixtures from the documented layout instead.

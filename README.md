@@ -16,9 +16,15 @@ Everything runs in your browser. The files you load are never uploaded anywhere.
 there is no runnable app in this branch yet.
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — what is being built and how
+- [`INPUT-FORMAT.md`](INPUT-FORMAT.md) — the supplier result files, documented from a real
+  Historic England Archive search
 - [`AGENTS.md`](AGENTS.md) — how to work in this repository
 - [`archive/MATHS.md`](archive/MATHS.md) — the coordinate conversions and footprint geometry
 - [`archive/`](archive/) — the previous React implementation, retired
+
+Input is the Excel workbook the archive sends with a search result. Vertical photographs get a
+drawn footprint; obliques get a point, because their listing contains nothing a footprint can
+be derived from.
 
 ## Licence
 

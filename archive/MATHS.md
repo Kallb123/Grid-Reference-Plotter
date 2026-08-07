@@ -94,6 +94,17 @@ Applied as: geodetic → geocentric Cartesian on the source ellipsoid, rotate/sc
 Cartesian → geodetic on the target ellipsoid. Implementation:
 `LatLonE.prototype.convertDatum` and `Vector3d.prototype.applyTransform`.
 
+A worked instance, from the first row of a real Historic England listing —
+`SK 421 849`, i.e. E 442150, N 384950:
+
+| | Latitude | Longitude |
+| --- | --- | --- |
+| Correct (WGS84) | 53.359754 N | 1.368131 W |
+| OSGB36 taken as WGS84 | 53.359478 N | 1.366593 W |
+
+**107 m apart** — 102 m east, 31 m south. On the 2400 m footprint that row implies, that is
+over 4% of the frame width, in a consistent direction.
+
 **Accuracy.** A Helmert transform is good to a few metres — 2–5 m over GB. That is fine for
 plotting photo footprints kilometres across. Sub-metre work needs OSTN15, a gridded shift
 table, which is a much larger dependency and unnecessary here.
@@ -135,13 +146,38 @@ Common formats and lenses, since catalogues quote them in inches:
 The first row the short way: `9/6 = 1.5`, and `1.5 × 3000 m = 4500 m`. The film-to-focal
 ratio *is* the ground-to-height ratio.
 
+**Independent confirmation.** Historic England's own *Guide to Aerial Photography results
+list* prints a scale-to-area table for customers. Against `ground side = 9″ × scale`:
+
+| Scale | The guide says | `9″ × scale` | Area from that |
+| --- | --- | ---: | ---: |
+| 1:2500 | c. 0.13 sq miles | 571.5 m | 0.126 sq miles |
+| 1:10 000 | c. 2 sq miles | 2286 m | 2.018 sq miles |
+| 1:15 000 | c. 4.5 sq miles | 3429 m | 4.540 sq miles |
+
+All three agree to the precision the guide quotes. These make good test cases precisely
+because they come from the supplier rather than from this derivation.
+
+A second check, on the same data: flying height is `f × m`, and for the sample's frames that
+lands on round *foot* values every time — 6″ at 1:10500 is 5250 ft, 12″ at 1:7000 is 7000 ft,
+6″ at 1:2500 is 1250 ft. Surveys were planned at round flying heights in feet, so the scales
+in the catalogue are real target scales rather than after-the-fact estimates. (With a 12″
+lens the scale denominator simply *is* the flying height in feet.)
+
 **Digital sensors** work identically with sensor dimensions in place of film. If the source
 quotes ground sample distance instead, `ground dimension = GSD × pixel count`, which sidesteps
 focal length and height entirely.
 
 **Caveats worth stating in the UI, not modelling:** the frame is only square-on if the
 aircraft was level (tip/tilt/crab distort real frames by a few percent), and the footprint is
-only rectangular over flat ground.
+only rectangular over flat ground. Where a catalogue gives a *target* survey scale rather than
+a measured one — as Historic England's does — that dominates both.
+
+**Obliques are a different problem, and an unsolvable one here.** A tilted photograph covers a
+trapezoid, and computing it needs the camera height, the tilt angle from vertical, and the
+bearing the camera was pointing. Archive oblique listings supply none of the three (see
+[`../INPUT-FORMAT.md`](../INPUT-FORMAT.md) §6). There is no formula to reach for; a point is
+the only honest output.
 
 ## 5. Placing and rotating the footprint
 
