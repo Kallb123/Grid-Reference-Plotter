@@ -1,6 +1,8 @@
+@AGENTS.md
+
 # CLAUDE.md
 
-Read [`AGENTS.md`](AGENTS.md) — it is the working guide for this repository (commands,
+The included [`AGENTS.md`](AGENTS.md) is the working guide for this repository (commands,
 conventions, testing, and the domain rules that produce wrong answers when ignored). It
 applies to you in full; this file only adds Claude-specific notes.
 
