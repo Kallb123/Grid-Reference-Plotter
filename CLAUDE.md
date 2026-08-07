@@ -12,8 +12,8 @@ For the coordinate and photogrammetry maths, read [`archive/MATHS.md`](archive/M
 
 ## Orientation
 
-The repository has been reset to documentation plus `archive/`. There is no application code
-yet — the Vue 3 + Vite scaffold is the first job. Don't go looking for `src/`.
+The Vue 3 + Vite scaffold and the pure domain layer exist; `src/io/`, the map and the rest of
+the UI do not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
 
 ## Notes for this codebase
 

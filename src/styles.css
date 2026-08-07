@@ -1,0 +1,29 @@
+:root {
+  --ink: #1c1c1c;
+  --ink-muted: #5a5a5a;
+  --paper: #fbfbf9;
+  --rule: #d8d6d0;
+
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ececec;
+    --ink-muted: #a3a3a3;
+    --paper: #1a1a1a;
+    --rule: #3a3a3a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+}

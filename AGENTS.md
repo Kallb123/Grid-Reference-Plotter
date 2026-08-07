@@ -8,12 +8,13 @@ this file is about how to work on it.
 ## Current state
 
 The repository was deliberately reset. The previous Create React App implementation has been
-removed; what remains is documentation plus [`archive/`](archive/), which holds the
-coordinate maths and the old implementation for reference.
+removed; [`archive/`](archive/) holds the coordinate maths and the old implementation for
+reference.
 
-**There is no application yet.** The first task is scaffolding it — Vite + Vue 3 +
-TypeScript, per `ARCHITECTURE.md` §3. Until that exists, the commands below describe the
-intended setup rather than something you can run.
+Milestones 1 and 2 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
+exists, and `src/domain/` carries grid reference parsing, the datum transform and the
+footprint geometry with its test suite. **There is no useful UI yet** — `App.vue` is a
+placeholder. Next up is the workbook reader (`src/io/`), then the map.
 
 ## Commands
 

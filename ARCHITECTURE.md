@@ -1,7 +1,7 @@
 # Architecture
 
-Status: **greenfield**. The repository has been reset; this document is the design the
-rebuild follows. Where a decision has not been made yet it is listed under
+Status: **in progress**. This document is the design the rebuild follows; [§9](#9-roadmap)
+records how far it has got. Where a decision has not been made yet it is listed under
 [Open questions](#open-questions) rather than guessed at in code.
 
 ---
@@ -249,10 +249,10 @@ do when wrong. A change that touches any of them needs a test.
 
 ## 9. Roadmap
 
-1. **Scaffold** — Vite + Vue 3 + TS, Vitest, lint, GitHub Pages workflow (the archived
-   CRA workflow published `build/`; Vite publishes `dist/`).
-2. **Domain core** — `osgb.ts` and `footprint.ts` with the full test suite. Headless and
-   verifiable before any UI exists.
+1. ~~**Scaffold**~~ — *done.* Vite + Vue 3 + TS, Vitest, ESLint, GitHub Pages workflow (the
+   archived CRA workflow published `build/`; Vite publishes `dist/`).
+2. ~~**Domain core**~~ — *done.* `osgb.ts`, `footprint.ts` and `units.ts` with the test suite.
+   Headless and verifiable before any UI exists.
 3. **Workbook parsing** — read the supplier `.xls`, classify sheets, map columns by header,
    surface bad rows. Cross-check the row count against the `Total Frames` trailer.
 4. **Map + footprints** — file drop, draw, fit bounds. The minimum useful tool.
