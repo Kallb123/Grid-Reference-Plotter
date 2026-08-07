@@ -11,10 +11,11 @@ The repository was deliberately reset. The previous Create React App implementat
 removed; [`archive/`](archive/) holds the coordinate maths and the old implementation for
 reference.
 
-Milestones 1 and 2 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
-exists, and `src/domain/` carries grid reference parsing, the datum transform and the
-footprint geometry with its test suite. **There is no useful UI yet** — `App.vue` is a
-placeholder. Next up is the workbook reader (`src/io/`), then the map.
+Milestones 1 to 3 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
+exists, `src/domain/` carries grid reference parsing, the datum transform and the footprint
+geometry, and `src/io/` reads a supplier workbook into records and issues. Both layers have
+test suites. **There is no useful UI yet** — `App.vue` is a placeholder, and nothing in the app
+calls `parseWorkbook` yet. Next up is the map (milestone 4): file drop, draw, fit bounds.
 
 ## Commands
 

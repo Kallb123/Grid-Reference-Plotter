@@ -83,6 +83,16 @@ is not ground distance (local scale factor, ≤0.04% — negligible here).
 **No backend.** Parsing and geometry all run client-side. This is a privacy property worth
 keeping: supplier quote files stay on the user's machine.
 
+**A note on the SheetJS dependency.** SheetJS stopped publishing to npm at `0.18.5` and moved to
+its own CDN, so `npm install xlsx` gets a build that carries two open advisories (a prototype
+pollution and a ReDoS, both fixed in `0.19.3`/`0.20.2` on the CDN). `0.18.5` is what is pinned
+here because the CDN is not reachable from every environment this is built in. Two things reduce
+the exposure meanwhile: `readWorkbook` takes cells as arrays (`sheet_to_json` with `header: 1`)
+and never lets sheet content become object keys, and there is no server — a malicious workbook
+would only ever reach the browser of whoever opened it. Worth revisiting: installing from
+`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` where the network allows it, or vendoring
+that tarball.
+
 ## 4. Layout
 
 ```
@@ -95,6 +105,7 @@ src/
     footprint.ts          camera + height → ground size → rotated corner polygon
     units.ts              inches/mm/feet/metres normalisation
   io/
+    parseWorkbook.ts      bytes → records + issues; the one entry point a component needs
     readWorkbook.ts       file → sheets; locates the header row, classifies each sheet
     parseVerticals.ts     vertical listing rows → VerticalRecord[] + ParseIssue[]
     parseObliques.ts      oblique listing rows → ObliqueRecord[] + ParseIssue[]
@@ -163,6 +174,8 @@ interface Provenance {
   sortieQuality?: string
   held?: 'P' | 'N' | string
   filmHeldBy?: string
+  photoReference?: string   // oblique listings only
+  originalNumber?: string   // oblique listings only
 }
 
 interface VerticalRecord {
@@ -253,8 +266,11 @@ do when wrong. A change that touches any of them needs a test.
    archived CRA workflow published `build/`; Vite publishes `dist/`).
 2. ~~**Domain core**~~ — *done.* `osgb.ts`, `footprint.ts` and `units.ts` with the test suite.
    Headless and verifiable before any UI exists.
-3. **Workbook parsing** — read the supplier `.xls`, classify sheets, map columns by header,
-   surface bad rows. Cross-check the row count against the `Total Frames` trailer.
+3. ~~**Workbook parsing**~~ — *done.* `src/io/` reads the supplier `.xls` (and `.xlsx`, and CSV,
+   from the same reader), finds the header row under the banner, folds in the continuation row,
+   maps columns by header text, and cross-checks the row count against the `Total Frames`
+   trailer. Bad rows land in `ParseIssue[]` with a line number and a readable reason. Headless
+   and tested; no UI consumes it yet.
 4. **Map + footprints** — file drop, draw, fit bounds. The minimum useful tool.
 5. **Table and linked selection** — compare candidates, inspect derived numbers.
 6. **Area of interest** — drop a pin or draw a polygon, sort frames by coverage of it. This is
