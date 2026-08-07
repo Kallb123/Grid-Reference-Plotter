@@ -12,8 +12,9 @@ Everything runs in your browser. The files you load are never uploaded anywhere.
 
 ## Status
 
-**Rebuilding.** The repository has been reset and is being rewritten as a Vue 3 application;
-there is no runnable app in this branch yet.
+**Rebuilding.** The Vue 3 scaffold and the domain layer are in place: grid reference parsing,
+the OSGB36 → WGS84 datum transform, and the footprint geometry, all under test. The workbook
+reader and the map are next, so there is no useful UI yet — `npm run dev` serves a placeholder.
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — what is being built and how
 - [`INPUT-FORMAT.md`](INPUT-FORMAT.md) — the supplier result files, documented from a real

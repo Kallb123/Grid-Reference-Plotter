@@ -46,7 +46,7 @@ its size:
 | 4 | `SK 34 78` | 1 km | +500 m |
 | 6 | `SK 345 789` | 100 m | +50 m |
 | 8 | `SK 3456 7890` | 10 m | +5 m |
-| 10 | `SK 34567 78901` | 1 m | 0 |
+| 10 | `SK 34567 78901` | 1 m | +0.5 m |
 
 Take the **centre** of the square as the nominal position and carry half the square's side
 as the positional uncertainty. A 4-figure reference is a ±500 m statement; the UI should say
