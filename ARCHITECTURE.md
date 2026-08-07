@@ -103,6 +103,7 @@ src/
     types.ts              VerticalRecord, ObliqueRecord, Footprint, GridRef, Film…
     osgb.ts               grid ref parse/format; easting/northing ↔ WGS84
     footprint.ts          camera + height → ground size → rotated corner polygon
+    bounds.ts             the box round what is plotted, for fit-to-bounds
     units.ts              inches/mm/feet/metres normalisation
   io/
     parseWorkbook.ts      bytes → records + issues; the one entry point a component needs
@@ -114,6 +115,7 @@ src/
   composables/
     usePhotoSet.ts        loaded records, derived footprints, selection
     useLeafletMap.ts      map lifecycle, layer sync, fit-to-bounds
+    photoSummary.ts       one frame → labelled lines of text, for popup or panel
   components/
     MapView.vue           map + footprint layer
     FileDrop.vue          drag/drop + file picker
@@ -121,6 +123,10 @@ src/
     PhotoDetail.vue       one frame: derived numbers and their inputs
     IssueList.vue         rows that failed to parse and why
 ```
+
+`PhotoTable.vue`, `PhotoDetail.vue` and `exportGeoJson.ts` are milestones 5 and 7 and do not
+exist yet; everything else above does. The frame detail currently renders from `photoSummary`
+inside `App.vue`, and moves into `PhotoDetail.vue` when the table arrives to share it.
 
 The `domain/` boundary is the important one: **anything that does arithmetic on coordinates
 belongs there, imports nothing framework-shaped, and has tests**. Components render; they do
@@ -271,7 +277,13 @@ do when wrong. A change that touches any of them needs a test.
    maps columns by header text, and cross-checks the row count against the `Total Frames`
    trailer. Bad rows land in `ParseIssue[]` with a line number and a readable reason. Headless
    and tested; no UI consumes it yet.
-4. **Map + footprints** — file drop, draw, fit bounds. The minimum useful tool.
+4. ~~**Map + footprints**~~ — *done.* Drop or pick a workbook, and every vertical is drawn as a
+   footprint polygon and every oblique as a point with its ±50 m square. The view fits the
+   result set on load, clicking a frame shows the numbers behind it and the caveats that come
+   with them, and rows that failed to parse are listed with their line numbers rather than
+   quietly missing. Leaflet is driven from `useLeafletMap` with no wrapper library; popups are
+   built as DOM nodes, never as HTML strings, because every value in them came out of a
+   spreadsheet a stranger sent the user.
 5. **Table and linked selection** — compare candidates, inspect derived numbers.
 6. **Area of interest** — drop a pin or draw a polygon, sort frames by coverage of it. This is
    the feature that actually answers "which do I buy?". The archive's own guide warns that
@@ -280,7 +292,8 @@ do when wrong. A change that touches any of them needs a test.
 7. **Export** — GeoJSON/KML of the chosen frames, and a shortlist back out as a spreadsheet
    carrying the provenance columns needed to place an order.
 
-Milestones 1–4 are the walking skeleton; stop and get feedback there.
+Milestones 1–4 are the walking skeleton; **stop and get feedback there** — that point has now
+been reached.
 
 ## Open questions
 

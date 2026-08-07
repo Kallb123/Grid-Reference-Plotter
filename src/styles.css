@@ -3,6 +3,9 @@
   --ink-muted: #5a5a5a;
   --paper: #fbfbf9;
   --rule: #d8d6d0;
+  --accent: #1d4ed8;
+  --accent-wash: rgb(29 78 216 / 6%);
+  --danger: #b91c1c;
 
   color-scheme: light dark;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -15,6 +18,9 @@
     --ink-muted: #a3a3a3;
     --paper: #1a1a1a;
     --rule: #3a3a3a;
+    --accent: #7ea2ff;
+    --accent-wash: rgb(126 162 255 / 10%);
+    --danger: #f08a8a;
   }
 }
 
@@ -26,4 +32,42 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
+}
+
+/*
+ * Map popups. Leaflet builds these outside the Vue tree, so their styles cannot be scoped to a
+ * component — the content is assembled as DOM nodes in `useLeafletMap`.
+ */
+.photo-popup h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.photo-popup__subtitle {
+  margin: 0 0 0.5rem;
+  color: #5a5a5a;
+  font-size: 0.8rem;
+}
+
+.photo-popup dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.photo-popup dt {
+  color: #5a5a5a;
+}
+
+.photo-popup dd {
+  margin: 0;
+}
+
+.photo-popup__notes {
+  margin: 0.6rem 0 0;
+  padding-left: 1rem;
+  color: #5a5a5a;
+  font-size: 0.75rem;
 }
