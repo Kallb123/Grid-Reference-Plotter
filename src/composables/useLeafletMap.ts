@@ -45,11 +45,18 @@ export interface LeafletMapSources {
   points: Ref<readonly PlottedPoint[]>
   bounds: Ref<LngLatBounds | null>
   selectedId: Ref<string | null>
+  /**
+   * The frame under the pointer, wherever the pointer is. Hover is shared with the table rather
+   * than kept inside the map, so pointing at a row lights up its polygon and vice versa.
+   */
+  hoveredId: Ref<string | null>
 }
 
 export interface LeafletMapOptions {
   /** Called when the user clicks a frame, or clicks the map away from every frame. */
   onSelect?: (id: string | null) => void
+  /** Called when the pointer enters or leaves a frame. */
+  onHover?: (id: string | null) => void
 }
 
 export interface LeafletMapHandle {
@@ -91,8 +98,6 @@ export function useLeafletMap(
   const highlight = L.layerGroup()
   /** Every drawn frame by record id, so selection restyles rather than redraws. */
   const drawnById = new Map<string, DrawnFrame>()
-  /** Not reactive: hover is a map affordance and nothing outside the map needs to know. */
-  let hoveredId: string | null = null
 
   function fitToData(): void {
     const box = sources.bounds.value
@@ -103,7 +108,6 @@ export function useLeafletMap(
   function draw(): void {
     frames.clearLayers()
     drawnById.clear()
-    hoveredId = null
 
     for (const footprint of sources.footprints.value) {
       const id = footprint.record.id
@@ -150,14 +154,12 @@ export function useLeafletMap(
     for (const { layer } of layers) {
       layer.bindPopup(popup)
       layer.on('click', () => options.onSelect?.(id))
-      layer.on('mouseover', () => {
-        hoveredId = id
-        applyStyles()
-      })
+      layer.on('mouseover', () => options.onHover?.(id))
       layer.on('mouseout', () => {
-        if (hoveredId !== id) return
-        hoveredId = null
-        applyStyles()
+        // Only if this frame is still the hovered one: leaving a polygon that overlaps another
+        // fires `mouseout` after the neighbour's `mouseover`, and clearing then would drop a
+        // hover that has already moved on.
+        if (sources.hoveredId.value === id) options.onHover?.(null)
       })
       layer.addTo(frames)
     }
@@ -174,6 +176,7 @@ export function useLeafletMap(
   function applyStyles(): void {
     highlight.clearLayers()
     const selectedId = sources.selectedId.value
+    const hoveredId = sources.hoveredId.value
 
     for (const [id, frame] of drawnById) {
       const isSelected = id === selectedId
@@ -213,6 +216,33 @@ export function useLeafletMap(
     }).addTo(highlight)
   }
 
+  /**
+   * Bring the selected frame into view, but only if it is not already there.
+   *
+   * Selecting a row in the table is worthless if its polygon is off the edge of the map, and
+   * with thirty frames over one town the table is the natural way to walk the listing. The
+   * "only if" matters: re-centring on every click would yank the map away from a user who has
+   * deliberately panned to a corner of it, and clicking a polygon would move the thing that was
+   * just clicked. Zoom is left alone — the scale the user chose is a decision, not a default.
+   */
+  function revealSelection(): void {
+    const id = sources.selectedId.value
+    if (map === null || id === null) return
+
+    const footprint = sources.footprints.value.find((candidate) => candidate.record.id === id)
+    if (footprint !== undefined) {
+      const box = L.latLngBounds(footprint.corners.map(toLatLng))
+      if (!map.getBounds().intersects(box)) map.panTo(box.getCenter())
+      return
+    }
+
+    const point = sources.points.value.find((candidate) => candidate.record.id === id)
+    if (point === undefined) return
+
+    const position = L.latLng(toLatLng(point.position))
+    if (!map.getBounds().contains(position)) map.panTo(position)
+  }
+
   onMounted(() => {
     const element = container.value
     if (element === null) return
@@ -244,7 +274,12 @@ export function useLeafletMap(
     fitToData()
   })
 
-  watch(sources.selectedId, applyStyles)
+  watch(sources.selectedId, () => {
+    applyStyles()
+    revealSelection()
+  })
+
+  watch(sources.hoveredId, applyStyles)
 
   return { fitToData }
 }

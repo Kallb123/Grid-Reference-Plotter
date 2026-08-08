@@ -15,9 +15,13 @@ const props = defineProps<{
   points: readonly PlottedPoint[]
   bounds: LngLatBounds | null
   selectedId: string | null
+  hoveredId: string | null
 }>()
 
-const emit = defineEmits<{ select: [id: string | null] }>()
+const emit = defineEmits<{
+  select: [id: string | null]
+  hover: [id: string | null]
+}>()
 
 const container = ref<HTMLElement | null>(null)
 
@@ -28,8 +32,12 @@ const { fitToData } = useLeafletMap(
     points: toRef(props, 'points'),
     bounds: toRef(props, 'bounds'),
     selectedId: toRef(props, 'selectedId'),
+    hoveredId: toRef(props, 'hoveredId'),
   },
-  { onSelect: (id) => emit('select', id) },
+  {
+    onSelect: (id) => emit('select', id),
+    onHover: (id) => emit('hover', id),
+  },
 )
 
 const hasData = computed(() => props.footprints.length > 0 || props.points.length > 0)
@@ -69,7 +77,8 @@ const hasData = computed(() => props.footprints.length > 0 || props.points.lengt
 
 .map__canvas {
   flex: 1;
-  min-height: 20rem;
+  /* Big enough to be a map, but it gives way on a short window rather than pushing the table off. */
+  min-height: min(20rem, 45vh);
   background: var(--rule);
 }
 

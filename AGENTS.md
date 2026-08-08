@@ -11,12 +11,13 @@ The repository was deliberately reset. The previous Create React App implementat
 removed; [`archive/`](archive/) holds the coordinate maths and the old implementation for
 reference.
 
-Milestones 1 to 4 of `ARCHITECTURE.md` §9 are done, which is the walking skeleton: the Vite +
-Vue 3 + TypeScript scaffold exists, `src/domain/` carries grid reference parsing, the datum
-transform, the footprint geometry and the plot bounds, `src/io/` reads a supplier workbook into
-records and issues, and `src/composables/` + `src/components/` join the two to a Leaflet map —
-drop a workbook, see the footprints drawn and framed, click one for its numbers. Next up is the
-table and linked selection (milestone 5).
+Milestones 1 to 5 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
+exists, `src/domain/` carries grid reference parsing, the datum transform, the footprint geometry
+and the plot bounds, `src/io/` reads a supplier workbook into records and issues, and
+`src/composables/` + `src/components/` join the two to a Leaflet map and a sortable table — drop a
+workbook, see the footprints drawn and framed, compare them by date, scale or extent, and point at
+either view to light up the other. Next up is the area of interest (milestone 6), which is what
+turns "here are your frames" into "here are the ones that cover your site".
 
 ## Commands
 
@@ -94,6 +95,10 @@ The domain layer carries the test burden, and it can: it is pure functions.
 - The load path (`usePhotoSet`): real workbook bytes in, footprints and points out, with the
   worked example's numbers asserted at the far end; a bad row reported without losing the good
   ones; a superseded load not overwriting the one that replaced it.
+- Table ordering (`photoTable`): each column sorted by its value rather than the text it is
+  displayed as — dates chronologically, scale by denominator, frame identifiers naturally so
+  frame 9 precedes frame 23; a row with nothing in the column last in *both* directions; ties
+  left in the supplier's order.
 
 Build fixtures from `INPUT-FORMAT.md` §3 rather than committing supplier files — those are
 customer data and third-party catalogue records, and they stay out of the repository.

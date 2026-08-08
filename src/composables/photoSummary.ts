@@ -138,9 +138,13 @@ export function formatPosition([lng, lat]: LngLat): string {
  * a square mile.
  */
 export function formatArea(squareMetres: number): string {
-  const squareKm = squareMetres / 1_000_000
   const squareMiles = squareMetresToSquareMiles(squareMetres)
-  return `${formatDecimal(squareKm)} km², ${formatDecimal(squareMiles)} sq miles`
+  return `${formatSquareKm(squareMetres)}, ${formatDecimal(squareMiles)} sq miles`
+}
+
+/** The metric half of `formatArea` alone, for a table column too narrow to carry both units. */
+export function formatSquareKm(squareMetres: number): string {
+  return `${formatDecimal(squareMetres / 1_000_000)} km²`
 }
 
 /** Metres and other counts, to the nearest whole unit with thousands separators. */
