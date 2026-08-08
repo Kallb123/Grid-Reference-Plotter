@@ -96,9 +96,14 @@ that tarball.
 ## 4. Layout
 
 ```
+public/                   ← copied to the site root, unbundled
+  favicon.svg             the brand mark, colour-scheme aware; PNG fallbacks alongside it
+  apple-touch-icon.png
+  brand/                  the kit's lockups and marks, light and dark
 src/
   main.ts
   App.vue
+  styles.css              the brand's tokens: palette, ramps, type, radius, rule weight
   domain/                 ← pure TypeScript: no Vue, no DOM, no I/O
     types.ts              VerticalRecord, ObliqueRecord, Footprint, GridRef, Film…
     osgb.ts               grid ref parse/format; easting/northing ↔ WGS84
@@ -118,6 +123,7 @@ src/
     photoSummary.ts       one frame → labelled lines of text, for popup or panel
     photoTable.ts         frames → table rows, and the column ordering
   components/
+    BrandLockup.vue       the mark and the name, inlined so the ink follows the colour scheme
     MapView.vue           map + footprint layer
     FileDrop.vue          drag/drop + file picker
     PhotoTable.vue        tabular list, linked selection with the map
@@ -135,6 +141,17 @@ they format was worked out in `domain/`.
 The `domain/` boundary is the important one: **anything that does arithmetic on coordinates
 belongs there, imports nothing framework-shaped, and has tests**. Components render; they do
 not calculate.
+
+**The brand.** Two overlapping photographic frames with the ground they share in red — the app's
+two subjects, a frame and its footprint. `src/styles.css` carries the palette, the tonal ramps,
+the type and the zeroed radius as variables; components take colours from those and never write a
+hex. Three of the values (`--brand-ground`, `--brand-ink`, `--brand-red`) are deliberately outside
+the colour-scheme swap, for the mark's red field and for the chrome that floats on the basemap —
+the basemap is a light raster whether or not the page is dark. The map reads its three plot
+colours off the mark: ink for the frames, the accent for the one being inspected, and a deep step
+of it for obliques, which are positions rather than extents. Archivo is bundled with the app; a
+webfont fetched from a CDN while the user's workbook is open would undercut the claim that
+nothing about the file leaves their machine.
 
 ## 5. Data flow
 

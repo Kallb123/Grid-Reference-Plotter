@@ -53,7 +53,7 @@ function describeLocation(issue: ParseIssue): string {
 <style scoped>
 .issues {
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.5rem 0.75rem;
   font-size: 0.85rem;
 }

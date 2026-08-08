@@ -89,8 +89,8 @@ function onDrop(event: DragEvent): void {
 .drop__target {
   display: block;
   width: 100%;
-  border: 2px dashed var(--rule);
-  border-radius: 8px;
+  border: var(--rule-weight) dashed var(--rule);
+  border-radius: var(--radius-md);
   padding: 1.25rem;
   background: none;
   color: inherit;
@@ -140,12 +140,21 @@ function onDrop(event: DragEvent): void {
 .drop__clear {
   margin-left: auto;
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   padding: 0.15rem 0.5rem;
   background: none;
-  color: inherit;
-  font: inherit;
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.drop__clear:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.drop__clear:active {
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
 }
 </style>

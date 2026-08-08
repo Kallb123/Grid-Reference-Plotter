@@ -9,6 +9,7 @@
  */
 
 import { computed } from 'vue'
+import BrandLockup from './components/BrandLockup.vue'
 import FileDrop from './components/FileDrop.vue'
 import IssueList from './components/IssueList.vue'
 import MapView from './components/MapView.vue'
@@ -32,7 +33,7 @@ const counts = computed(() => {
   <div class="app">
     <aside class="panel">
       <header class="panel__head">
-        <h1>Grid Reference Plotter</h1>
+        <h1 class="panel__brand"><BrandLockup :mark-size="60" /></h1>
         <p class="panel__lede">
           Drop an aerial photography results workbook to see which frames cover your site.
         </p>
@@ -113,19 +114,19 @@ const counts = computed(() => {
   min-height: 0;
   overflow-y: auto;
   padding: 1.25rem;
-  border-bottom: 1px solid var(--rule);
+  /* Strong rules between major sections; hairlines are for rows inside one. */
+  border-bottom: var(--rule-weight) solid var(--rule);
 }
 
 @media (width >= 60rem) {
   .panel {
-    border-right: 1px solid var(--rule);
+    border-right: var(--rule-weight) solid var(--rule);
     border-bottom: none;
   }
 }
 
-.panel__head h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.25rem;
+.panel__brand {
+  margin: 0 0 0.6rem;
 }
 
 .panel__lede {
@@ -149,7 +150,7 @@ const counts = computed(() => {
 .panel__foot {
   margin-top: auto;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--rule);
+  border-top: var(--rule-weight) solid var(--rule);
 }
 
 /*

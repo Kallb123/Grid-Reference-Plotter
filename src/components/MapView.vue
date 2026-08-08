@@ -8,7 +8,7 @@ import { computed, ref, toRef } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import type { LngLatBounds } from '../domain/bounds'
 import type { Footprint, PlottedPoint } from '../domain/types'
-import { useLeafletMap } from '../composables/useLeafletMap'
+import { OBLIQUE_COLOUR, VERTICAL_COLOUR, useLeafletMap } from '../composables/useLeafletMap'
 
 const props = defineProps<{
   footprints: readonly Footprint[]
@@ -49,11 +49,22 @@ const hasData = computed(() => props.footprints.length > 0 || props.points.lengt
 
     <div v-if="hasData" class="map__legend">
       <p class="map__key">
-        <span class="map__swatch map__swatch--vertical" aria-hidden="true" />
+        <span
+          class="map__swatch"
+          :style="{ borderColor: VERTICAL_COLOUR }"
+          aria-hidden="true"
+        />
         Vertical frame footprint
       </p>
       <p v-if="props.points.length > 0" class="map__key">
-        <span class="map__swatch map__swatch--oblique" aria-hidden="true" />
+        <span
+          class="map__swatch map__swatch--oblique"
+          :style="{
+            borderColor: OBLIQUE_COLOUR,
+            background: `color-mix(in srgb, ${OBLIQUE_COLOUR} 60%, transparent)`,
+          }"
+          aria-hidden="true"
+        />
         Oblique photo position (±50 m; no extent is derivable)
       </p>
       <button type="button" class="map__fit" @click="fitToData">Fit to frames</button>
@@ -91,10 +102,15 @@ const hasData = computed(() => props.footprints.length > 0 || props.points.lengt
   flex-direction: column;
   gap: 0.35rem;
   max-width: 16rem;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
+  /*
+   * Fixed brand colours rather than the scheme's: this panel floats on the basemap, and the
+   * basemap is a light raster in both schemes — as are Leaflet's own zoom and scale controls.
+   */
+  border: 1px solid color-mix(in srgb, var(--brand-ink) 40%, transparent);
+  border-radius: var(--radius-md);
   padding: 0.6rem 0.75rem;
-  background: var(--paper);
+  background: var(--brand-ground);
+  color: var(--brand-ink);
   font-size: 0.8rem;
 }
 
@@ -105,40 +121,47 @@ const hasData = computed(() => props.footprints.length > 0 || props.points.lengt
   margin: 0;
 }
 
+/* Colours come from the map's own constants, bound inline — see the note beside them. */
 .map__swatch {
   flex: none;
   width: 0.85rem;
   height: 0.85rem;
   border: 2px solid;
-  border-radius: 2px;
+  border-radius: var(--radius-md);
 }
 
-.map__swatch--vertical {
-  border-color: #1d4ed8;
-}
-
+/* Round, because an oblique is a position and not an extent. */
 .map__swatch--oblique {
-  border-color: #b45309;
   border-radius: 50%;
-  background: rgb(180 83 9 / 60%);
 }
 
 .map__fit {
   margin-top: 0.15rem;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--brand-ink) 40%, transparent);
+  border-radius: var(--radius-md);
   padding: 0.2rem 0.5rem;
   background: none;
   color: inherit;
-  font: inherit;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
   font-size: 0.8rem;
+  /* Wider than its label, so the label starts at the left padding edge rather than centring. */
+  text-align: left;
   cursor: pointer;
+}
+
+.map__fit:hover {
+  background: color-mix(in srgb, var(--brand-ink) 7%, transparent);
+}
+
+.map__fit:active {
+  background: color-mix(in srgb, var(--brand-ink) 14%, transparent);
 }
 
 .map__caveat {
   flex: none;
   margin: 0;
-  border-top: 1px solid var(--rule);
+  border-top: var(--rule-weight) solid var(--rule);
   padding: 0.5rem 0.9rem;
   background: var(--paper);
   color: var(--ink-muted);

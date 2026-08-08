@@ -1,26 +1,103 @@
+/*
+ * The brand's tokens, from the Modernist design kit: ink #201e1d on ground #f3f2f2, one red
+ * accent #ec3013, Archivo throughout, zero corner radius and rules strong enough to organise the
+ * page on their own. Take colours, spacing and radii from these variables rather than writing a
+ * hex or a corner radius into a component.
+ *
+ * The kit is a light-ground system. The dark scheme below is this app's own: the same ink and
+ * ground swapped, the same accent, and ramp steps chosen for contrast against the darker ground.
+ *
+ * Archivo is self-hosted (`@fontsource-variable/archivo`) rather than linked from a font CDN.
+ * The whole premise of this tool is that loading a file makes no network request; a webfont
+ * fetched from a third party while the user's workbook is open undercuts that, quietly.
+ */
+
 :root {
-  --ink: #1c1c1c;
-  --ink-muted: #5a5a5a;
-  --paper: #fbfbf9;
-  --rule: #d8d6d0;
-  --accent: #1d4ed8;
-  --accent-wash: rgb(29 78 216 / 6%);
-  --danger: #b91c1c;
+  /* — brand palette — */
+  --color-bg: #f3f2f2;
+  --color-surface: #eae9e9;
+  --color-text: #201e1d;
+  --color-accent: #ec3013;
+  --color-divider: color-mix(in srgb, var(--color-text) 40%, transparent);
+
+  /*
+   * The same three values, fixed: they are not re-tuned by the colour scheme. Chrome that floats
+   * on the basemap uses these, because the basemap is a light raster whichever scheme the page is
+   * in — a legend in dark-scheme ink would be a black swatch on a black panel over a light map.
+   */
+  --brand-ground: #f3f2f2;
+  --brand-ink: #201e1d;
+  --brand-red: #ec3013;
+
+  /*
+   * The tonal ramps, generated in OKLCH on one shared lightness scale: the same step of either
+   * ramp carries the same visual weight. Light steps (100–300) are tinted fills and hovers, 500
+   * is the role's base, dark steps (700–900) are text on those fills and pressed states.
+   */
+  --color-neutral-100: #f8f4f4;
+  --color-neutral-200: #eae7e7;
+  --color-neutral-300: #d7d3d3;
+  --color-neutral-400: #bab6b6;
+  --color-neutral-500: #9b9797;
+  --color-neutral-600: #7d7979;
+  --color-neutral-700: #605d5d;
+  --color-neutral-800: #444141;
+  --color-neutral-900: #2d2b2b;
+
+  --color-accent-100: #fff2ef;
+  --color-accent-200: #ffe0d9;
+  --color-accent-300: #ffc4b8;
+  --color-accent-400: #ff9783;
+  --color-accent-500: #ff563c;
+  --color-accent-600: #dd2b0f;
+  --color-accent-700: #ae1800;
+  --color-accent-800: #7c1405;
+  --color-accent-900: #4d170e;
+
+  --font-heading: 'Archivo Variable', Archivo, system-ui, sans-serif;
+  --font-heading-weight: 800;
+  --font-body: 'Archivo Variable', Archivo, system-ui, sans-serif;
+
+  /* Zero on purpose. Nothing in this system has a rounded corner. */
+  --radius-md: 0;
+
+  /*
+   * Rules do the organising, so they are drawn at a weight you can see: 2px between major
+   * sections, 1px between rows within one.
+   */
+  --rule-weight: 2px;
+
+  /* — what the components ask for, in terms of the palette above — */
+  --ink: var(--color-text);
+  --ink-muted: var(--color-neutral-700);
+  --paper: var(--color-bg);
+  --surface: var(--color-surface);
+  --rule: var(--color-divider);
+  --accent: var(--color-accent);
+  --accent-wash: var(--color-accent-100);
+  /*
+   * The palette is mono — there is no second hue to spend on errors, and inventing one would put
+   * a colour on the page that is not the brand's. A failed row is marked by its wording and its
+   * place in the list; the colour is a deep step of the accent, dark enough for body-size text.
+   */
+  --danger: var(--color-accent-700);
 
   color-scheme: light dark;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.5;
+  font-family: var(--font-body);
+  line-height: 1.55;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #ececec;
-    --ink-muted: #a3a3a3;
-    --paper: #1a1a1a;
-    --rule: #3a3a3a;
-    --accent: #7ea2ff;
-    --accent-wash: rgb(126 162 255 / 10%);
-    --danger: #f08a8a;
+    --color-bg: #201e1d;
+    --color-surface: var(--color-neutral-900);
+    --color-text: #f3f2f2;
+
+    --ink-muted: var(--color-neutral-400);
+    /* The base accent is tuned to the light ground; on ink it needs a step up to stay legible. */
+    --accent: var(--color-accent-500);
+    --accent-wash: color-mix(in srgb, var(--color-accent-500) 16%, transparent);
+    --danger: var(--color-accent-400);
   }
 }
 
@@ -32,20 +109,55 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+}
+
+/* Themed, never the browser's default blue. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /*
  * Map popups. Leaflet builds these outside the Vue tree, so their styles cannot be scoped to a
- * component — the content is assembled as DOM nodes in `useLeafletMap`.
+ * component — the content is assembled as DOM nodes in `useLeafletMap`. Leaflet's own popup
+ * chrome is rounded and shadowed by default; squared off here to match everything else.
  */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  border-radius: var(--radius-md);
+}
+
 .photo-popup h2 {
   margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
   font-size: 0.95rem;
 }
 
 .photo-popup__subtitle {
   margin: 0 0 0.5rem;
-  color: #5a5a5a;
+  color: var(--color-neutral-700);
   font-size: 0.8rem;
 }
 
@@ -58,7 +170,7 @@ body {
 }
 
 .photo-popup dt {
-  color: #5a5a5a;
+  color: var(--color-neutral-700);
 }
 
 .photo-popup dd {
@@ -68,6 +180,6 @@ body {
 .photo-popup__notes {
   margin: 0.6rem 0 0;
   padding-left: 1rem;
-  color: #5a5a5a;
+  color: var(--color-neutral-700);
   font-size: 0.75rem;
 }

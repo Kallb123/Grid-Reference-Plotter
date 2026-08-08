@@ -27,6 +27,9 @@ exporting a shortlist. See §9 of the architecture for the order.
 - [`AGENTS.md`](AGENTS.md) — how to work in this repository
 - [`archive/MATHS.md`](archive/MATHS.md) — the coordinate conversions and footprint geometry
 - [`archive/`](archive/) — the previous React implementation, retired
+- [`public/brand/`](public/brand/) — the lockups and marks; the icon set is beside them in
+  [`public/`](public/), and the palette and type are the variables at the top of
+  [`src/styles.css`](src/styles.css)
 
 Input is the Excel workbook the archive sends with a search result. Vertical photographs get a
 drawn footprint; obliques get a point, because their listing contains nothing a footprint can
