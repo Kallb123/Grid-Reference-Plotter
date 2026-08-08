@@ -287,6 +287,18 @@ watch(
   max-height: min(16rem, 30vh);
 }
 
+/*
+ * Stacked on a narrow screen the page itself scrolls, so the listing runs to its full length
+ * rather than becoming a second scroller inside the first — a 16rem window of rows inside a
+ * scrolling page is a trap on a touchscreen. It stays a scroll container sideways: the rows do
+ * not wrap and there are more columns than a phone is wide.
+ */
+@media (width < 60rem) {
+  .table__scroll {
+    max-height: none;
+  }
+}
+
 .table__grid {
   width: 100%;
   border-collapse: collapse;
