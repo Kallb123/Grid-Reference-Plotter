@@ -168,6 +168,35 @@ describe('usePhotoSet', () => {
     expect(photos.selectedId.value).toBeNull()
   })
 
+  it('shares hover, so the table and the map can highlight each other’s frame', () => {
+    const photos = usePhotoSet()
+
+    photos.hover('MAL/67055 frame 23')
+    expect(photos.hoveredId.value).toBe('MAL/67055 frame 23')
+
+    // Hover is independent of selection: pointing at one frame while another is selected is
+    // exactly what comparing two candidates looks like.
+    photos.select('MAL/68058 frame 160')
+    expect(photos.hoveredId.value).toBe('MAL/67055 frame 23')
+
+    photos.hover(null)
+    expect(photos.hoveredId.value).toBeNull()
+    expect(photos.selectedId.value).toBe('MAL/68058 frame 160')
+  })
+
+  it('drops a hover left behind by the file it pointed into', async () => {
+    const photos = usePhotoSet()
+    await photos.loadFile(workbookFile())
+    photos.hover('MAL/67055 frame 23')
+
+    await photos.loadFile(workbookFile('again.xls'))
+    expect(photos.hoveredId.value).toBeNull()
+
+    photos.hover('MAL/67055 frame 23')
+    photos.clear()
+    expect(photos.hoveredId.value).toBeNull()
+  })
+
   it('clears back to the empty state', async () => {
     const photos = usePhotoSet()
     await photos.loadFile(workbookFile())

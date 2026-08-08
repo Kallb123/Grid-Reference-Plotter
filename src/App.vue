@@ -1,28 +1,22 @@
 <script setup lang="ts">
 /**
- * The walking skeleton of ARCHITECTURE.md §9.4: drop a supplier workbook, see the frames drawn,
- * and be told about anything that did not make it.
+ * ARCHITECTURE.md §9.5: drop a supplier workbook, see the frames drawn, compare them in the
+ * table, and be told about anything that did not make it.
  *
- * The table and the linked selection are milestone 5; selection exists here already because the
- * map needs somewhere to put a click, and `usePhotoSet` is where the table will read it from.
+ * Selection and hover live in `usePhotoSet` rather than in either view, because both views show
+ * the same frames and each has to react to the other: a row lights up its polygon, and a polygon
+ * clicked on the map scrolls its row into view.
  */
 
 import { computed } from 'vue'
 import FileDrop from './components/FileDrop.vue'
 import IssueList from './components/IssueList.vue'
 import MapView from './components/MapView.vue'
-import { footprintSummary, pointSummary } from './composables/photoSummary'
+import PhotoDetail from './components/PhotoDetail.vue'
+import PhotoTable from './components/PhotoTable.vue'
 import { usePhotoSet } from './composables/usePhotoSet'
 
 const photos = usePhotoSet()
-
-const summary = computed(() => {
-  const selection = photos.selected.value
-  if (selection === null) return null
-  return selection.kind === 'vertical'
-    ? footprintSummary(selection.footprint)
-    : pointSummary(selection.point)
-})
 
 const counts = computed(() => {
   const parts: string[] = []
@@ -63,30 +57,10 @@ const counts = computed(() => {
         :start-open="photos.status.value === 'loaded' && photos.isEmpty.value"
       />
 
-      <section v-if="summary !== null" class="detail">
-        <h2 class="detail__title">{{ summary.title }}</h2>
-        <p class="detail__subtitle">{{ summary.subtitle }}</p>
-        <dl class="detail__lines">
-          <template v-for="line in summary.lines" :key="line.label">
-            <dt>{{ line.label }}</dt>
-            <dd>{{ line.value }}</dd>
-          </template>
-        </dl>
+      <PhotoDetail :selection="photos.selected.value" />
 
-        <h3 class="detail__heading">Ordering details</h3>
-        <dl class="detail__lines">
-          <template v-for="line in summary.provenance" :key="line.label">
-            <dt>{{ line.label }}</dt>
-            <dd>{{ line.value }}</dd>
-          </template>
-        </dl>
-        <ul class="detail__notes">
-          <li v-for="note in summary.notes" :key="note">{{ note }}</li>
-        </ul>
-      </section>
-
-      <p v-else-if="!photos.isEmpty.value" class="panel__hint">
-        Click a frame on the map to see the numbers behind it.
+      <p v-if="photos.selected.value === null && !photos.isEmpty.value" class="panel__hint">
+        Choose a frame, on the map or in the table, to see the numbers behind it.
       </p>
 
       <footer class="panel__foot">
@@ -94,13 +68,24 @@ const counts = computed(() => {
       </footer>
     </aside>
 
-    <main class="app__map">
+    <main class="app__work">
       <MapView
         :footprints="photos.footprints.value"
         :points="photos.points.value"
         :bounds="photos.bounds.value"
         :selected-id="photos.selectedId.value"
+        :hovered-id="photos.hoveredId.value"
         @select="photos.select"
+        @hover="photos.hover"
+      />
+
+      <PhotoTable
+        :footprints="photos.footprints.value"
+        :points="photos.points.value"
+        :selected-id="photos.selectedId.value"
+        :hovered-id="photos.hoveredId.value"
+        @select="photos.select"
+        @hover="photos.hover"
       />
     </main>
   </div>
@@ -167,56 +152,20 @@ const counts = computed(() => {
   border-top: 1px solid var(--rule);
 }
 
-.app__map {
-  min-height: 0;
-}
-
-.detail {
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  padding: 0.75rem 0.9rem;
-}
-
-.detail__title {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.detail__subtitle {
-  margin: 0 0 0.6rem;
-  color: var(--ink-muted);
-  font-size: 0.85rem;
-}
-
-.detail__heading {
-  margin: 0.9rem 0 0.3rem;
-  color: var(--ink-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.detail__lines {
+/*
+ * Map above, table below. `auto` rather than a fixed split: the table sizes to its own content up
+ * to the cap it sets itself, so a listing of three frames does not reserve half the window, and
+ * the map keeps the rest.
+ *
+ * `min-content` rather than `0` as the map's floor: with a floor of zero the track can be sized
+ * smaller than the map's own minimum height, and the map then overflows the track and paints over
+ * the table. Sized from its content, a window too short for both scrolls instead of overlapping.
+ */
+.app__work {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.15rem 0.75rem;
-  margin: 0;
-  font-size: 0.85rem;
-}
-
-.detail__lines dt {
-  color: var(--ink-muted);
-}
-
-.detail__lines dd {
-  margin: 0;
-}
-
-.detail__notes {
-  margin: 0.75rem 0 0;
-  padding-left: 1.1rem;
-  color: var(--ink-muted);
-  font-size: 0.78rem;
+  grid-template-rows: minmax(min-content, 1fr) auto;
+  min-height: 0;
+  /* Without this the table's widest row sets the column width and drags the whole page wider. */
+  min-width: 0;
 }
 </style>

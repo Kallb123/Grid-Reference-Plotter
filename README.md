@@ -12,9 +12,14 @@ Everything runs in your browser. The files you load are never uploaded anywhere.
 
 ## Status
 
-**Rebuilding.** The Vue 3 scaffold and the domain layer are in place: grid reference parsing,
-the OSGB36 → WGS84 datum transform, and the footprint geometry, all under test. The workbook
-reader and the map are next, so there is no useful UI yet — `npm run dev` serves a placeholder.
+**Rebuilding, and usable.** Drop a supplier's results workbook on the page and every frame is
+drawn: verticals as footprints, obliques as points. Underneath are grid reference parsing, the
+OSGB36 → WGS84 datum transform and the footprint geometry, all under test; alongside the map is a
+table of the same frames, sortable by date, scale or ground extent, linked to the map both ways.
+Rows that could not be read are listed with their line numbers rather than quietly dropped.
+
+Still to come: marking an area of interest and ranking frames by how well they cover it, and
+exporting a shortlist. See §9 of the architecture for the order.
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — what is being built and how
 - [`INPUT-FORMAT.md`](INPUT-FORMAT.md) — the supplier result files, documented from a real

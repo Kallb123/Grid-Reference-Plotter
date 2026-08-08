@@ -113,9 +113,10 @@ src/
     columns.ts            header-text → column mapping, film/format string parsing
     exportGeoJson.ts      footprints and points → GeoJSON FeatureCollection
   composables/
-    usePhotoSet.ts        loaded records, derived footprints, selection
+    usePhotoSet.ts        loaded records, derived footprints, selection and hover
     useLeafletMap.ts      map lifecycle, layer sync, fit-to-bounds
     photoSummary.ts       one frame → labelled lines of text, for popup or panel
+    photoTable.ts         frames → table rows, and the column ordering
   components/
     MapView.vue           map + footprint layer
     FileDrop.vue          drag/drop + file picker
@@ -124,9 +125,12 @@ src/
     IssueList.vue         rows that failed to parse and why
 ```
 
-`PhotoTable.vue`, `PhotoDetail.vue` and `exportGeoJson.ts` are milestones 5 and 7 and do not
-exist yet; everything else above does. The frame detail currently renders from `photoSummary`
-inside `App.vue`, and moves into `PhotoDetail.vue` when the table arrives to share it.
+`exportGeoJson.ts` is milestone 7 and does not exist yet; everything else above does.
+
+`photoSummary.ts` and `photoTable.ts` are both plain modules rather than components, for the
+same reason: the summary has to render into a Leaflet popup as well as a Vue template, the
+table's ordering has to be testable without a browser, and neither is arithmetic — every number
+they format was worked out in `domain/`.
 
 The `domain/` boundary is the important one: **anything that does arithmetic on coordinates
 belongs there, imports nothing framework-shaped, and has tests**. Components render; they do
@@ -146,9 +150,10 @@ Workbook ─▶ io/readWorkbook ─▶ sheet classified by header row
                                                                           └─▶ exportGeoJson
 ```
 
-Selection is shared state in `usePhotoSet`, so hovering a table row highlights its polygon
-and clicking a polygon scrolls the table — this linkage is the main thing that makes the tool
-usable with 50+ candidate frames.
+Selection and hover are shared state in `usePhotoSet`, so hovering a table row highlights its
+polygon and clicking a polygon scrolls the table — this linkage is the main thing that makes the
+tool usable with 50+ candidate frames. Neither view owns either piece of state: both show the
+same frames, and each has to react to what the user does in the other.
 
 Rows that cannot be parsed **never** silently vanish. Every one lands in `ParseIssue[]` with
 its line number and a plain-English reason, and the UI shows the count.
@@ -284,7 +289,17 @@ do when wrong. A change that touches any of them needs a test.
    quietly missing. Leaflet is driven from `useLeafletMap` with no wrapper library; popups are
    built as DOM nodes, never as HTML strings, because every value in them came out of a
    spreadsheet a stranger sent the user.
-5. **Table and linked selection** — compare candidates, inspect derived numbers.
+5. ~~**Table and linked selection**~~ — *done.* Every plotted frame is a row — verticals and
+   obliques together, because they are candidates for the same purchase — sortable by frame,
+   date, centre point, scale, ground extent or area. Sorting runs on the value, not on the text
+   of it: dates order chronologically although the catalogue stores them as `13 JUN 1967`, and a
+   frame with nothing in a column stays last whichever way the column points, so reversing a sort
+   never promotes an oblique to "finest scale". A third click on a heading returns the listing to
+   the supplier's own order, which is information in its own right. Selection and hover are shared
+   through `usePhotoSet`, so pointing at a row lights up its polygon, choosing a frame in either
+   view selects it in both, and a frame chosen on the map scrolls its row into view — and pans the
+   map to itself only if it was off screen, since re-centring on every click would fight a user
+   who has panned deliberately.
 6. **Area of interest** — drop a pin or draw a polygon, sort frames by coverage of it. This is
    the feature that actually answers "which do I buy?". The archive's own guide warns that
    *"your area will not necessarily be in the centre of each photograph and may be on the edge
@@ -292,8 +307,8 @@ do when wrong. A change that touches any of them needs a test.
 7. **Export** — GeoJSON/KML of the chosen frames, and a shortlist back out as a spreadsheet
    carrying the provenance columns needed to place an order.
 
-Milestones 1–4 are the walking skeleton; **stop and get feedback there** — that point has now
-been reached.
+Milestones 1–4 were the walking skeleton, and 5 makes it a comparison tool. The next one is the
+one that answers the question the app is for: **which of these frames covers my site?**
 
 ## Open questions
 

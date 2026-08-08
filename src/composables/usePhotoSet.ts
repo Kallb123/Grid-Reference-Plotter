@@ -51,6 +51,15 @@ export interface PhotoSet {
   selected: ComputedRef<Selection | null>
   select: (id: string | null) => void
 
+  /**
+   * The frame under the pointer, in either the table or the map.
+   *
+   * Shared for the same reason selection is: hovering a table row has to light up its polygon,
+   * and hovering a polygon has to light up its row. Neither view can own it.
+   */
+  hoveredId: Ref<string | null>
+  hover: (id: string | null) => void
+
   loadFile: (file: File) => Promise<void>
   clear: () => void
 }
@@ -68,6 +77,7 @@ export function usePhotoSet(): PhotoSet {
   const sheets = shallowRef<readonly SheetSummary[]>([])
 
   const selectedId = ref<string | null>(null)
+  const hoveredId = ref<string | null>(null)
 
   // A second file dropped while the first is still being read must not have its results
   // overwritten by the slower one finishing later. Only the most recent load may write.
@@ -96,6 +106,10 @@ export function usePhotoSet(): PhotoSet {
     selectedId.value = id
   }
 
+  function hover(id: string | null): void {
+    hoveredId.value = id
+  }
+
   function clear(): void {
     currentLoad += 1
     status.value = 'empty'
@@ -106,6 +120,7 @@ export function usePhotoSet(): PhotoSet {
     issues.value = []
     sheets.value = []
     selectedId.value = null
+    hoveredId.value = null
   }
 
   async function loadFile(file: File): Promise<void> {
@@ -116,6 +131,7 @@ export function usePhotoSet(): PhotoSet {
     fileName.value = file.name
     loadError.value = null
     selectedId.value = null
+    hoveredId.value = null
 
     try {
       const parse = await parseWorkbookFile(file)
@@ -154,6 +170,8 @@ export function usePhotoSet(): PhotoSet {
     selectedId,
     selected,
     select,
+    hoveredId,
+    hover,
     loadFile,
     clear,
   }
