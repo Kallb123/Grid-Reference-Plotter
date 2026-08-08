@@ -12,9 +12,9 @@ For the coordinate and photogrammetry maths, read [`archive/MATHS.md`](archive/M
 
 ## Orientation
 
-The Vue 3 + Vite scaffold, the pure domain layer, the workbook reader (`src/io/`), the map and the
-linked table (`src/composables/`, `src/components/`) exist. The area of interest and the exports do
-not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
+The Vue 3 + Vite scaffold, the pure domain layer, the workbook reader (`src/io/`), the map, the
+linked table, the area of interest and the listing filter (`src/composables/`, `src/components/`)
+exist. The exports do not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
 
 ## Notes for this codebase
 
@@ -33,7 +33,12 @@ not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
   guide — the oblique sheet layout is the latter. Keep that distinction when you extend it,
   and update the document in the same change as the parser.
 - **Don't invent a footprint that isn't in the data.** Obliques carry no scale, focal length,
-  height or bearing. A point is the honest answer; a plausible-looking trapezoid is not.
+  height or bearing. A point is the honest answer; a plausible-looking trapezoid is not. The
+  same goes for filtering them: with no scale, a request for fine detail says nothing about an
+  oblique, so `domain/filter` keeps it and says it could not be judged.
+- **`domain/detail` describes the catalogue's scale, not the photograph.** The bands turn a
+  supplied nominal denominator into words a customer can act on. Extending them is fine;
+  claiming a resolution for a print nobody has seen is not.
 - **Supplier files stay out of the repository.** They are customer enquiry data. Build test
   fixtures from the documented layout instead.
 - **Nothing from a workbook goes near `innerHTML`.** Map popups are built outside the Vue

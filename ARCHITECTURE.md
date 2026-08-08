@@ -111,6 +111,9 @@ src/
     geometry.ts           plane polygon maths in grid metres: area, clipping, distances
     coverage.ts           area of interest × footprint → how much, how close to the edge
     bounds.ts             the box round what is plotted, for fit-to-bounds
+    catalogueDate.ts      the catalogue's `13 JUN 1967` text → a timestamp, and a year
+    detail.ts             scale → what you can actually see at it, in bands
+    filter.ts             the wizard's answers × a record → kept, dropped, or unjudgeable
     units.ts              inches/mm/feet/metres normalisation
   io/
     parseWorkbook.ts      bytes → records + issues; the one entry point a component needs
@@ -122,6 +125,7 @@ src/
   composables/
     usePhotoSet.ts        loaded records, derived footprints, selection and hover
     useAreaOfInterest.ts  the marked site, the state of drawing one, and every frame's verdict
+    useFrameFilter.ts     the wizard's answers, and which frames they leave on screen
     useLeafletMap.ts      map lifecycle, layer sync, fit-to-bounds, drawing the site
     photoSummary.ts       one frame → labelled lines of text, for popup or panel
     photoTable.ts         frames → table rows, and the column ordering
@@ -130,12 +134,13 @@ src/
     MapView.vue           map + footprint layer, legend, and the prompt shown while drawing
     FileDrop.vue          drag/drop + file picker
     AreaOfInterestPanel.vue  mark, describe and clear the site; the coverage tally
+    FrameWizard.vue       the questions that narrow the listing, one at a time
     PhotoTable.vue        tabular list, linked selection with the map
     PhotoDetail.vue       one frame: derived numbers and their inputs
     IssueList.vue         rows that failed to parse and why
 ```
 
-`exportGeoJson.ts` is milestone 7 and does not exist yet; everything else above does.
+`exportGeoJson.ts` is milestone 8 and does not exist yet; everything else above does.
 
 `photoSummary.ts` and `photoTable.ts` are both plain modules rather than components, for the
 same reason: the summary has to render into a Leaflet popup as well as a Vue template, the
@@ -177,6 +182,12 @@ Map click ─▶ AreaOfInterest (WGS84) ─▶ domain/osgb ─▶ grid metres �
                                                     ├─▶ MapView   (frames that miss it faded)
                                                     ├─▶ PhotoTable (two more columns, sorted by them)
                                                     └─▶ PhotoDetail / popups (how much, how close)
+
+FrameWizard ─▶ FrameFilter ─▶ domain/filter ─▶ kept / dropped / nothing to judge it by
+             (detail band, years,      │
+              coverage, print held)    ├─▶ MapView   (dropped frames taken off the map)
+                                       ├─▶ PhotoTable (dropped rows left out)
+                                       └─▶ FrameWizard (how many survive, as each answer is given)
 ```
 
 Selection and hover are shared state in `usePhotoSet`, so hovering a table row highlights its
@@ -190,6 +201,14 @@ The site is the only input in the app that does not come out of a spreadsheet, a
 WGS84 because that is what a map click is. It is converted to National Grid metres before
 anything is measured, so the comparison happens on the plane both the site and the frames really
 live on and the datum transform cannot introduce a discrepancy between the two.
+
+The filter is the other direction of the same idea: the site is something the user adds to the
+listing, and the wizard's answers are something they take away from it. It hides frames and does
+nothing else — no re-ordering, no re-measuring — so a frame that survives it carries exactly the
+coverage figures and caveats it had before. Its one rule is that **a criterion a record cannot
+answer never rejects it**: an oblique has no scale, so a request for fine detail says nothing
+about it, and the frame stays with the criterion reported back as unjudged rather than being
+dropped on no evidence.
 
 Rows that cannot be parsed **never** silently vanish. Every one lands in `ParseIssue[]` with
 its line number and a plain-English reason, and the UI shows the count.
@@ -331,6 +350,14 @@ do when wrong. A change that touches any of them needs a test.
 10. **No coverage claimed for an oblique.** With no extent there is nothing to intersect. The
     distance from the site to the archive's map reference is real and is shown as a distance;
     it is never presented as, or sortable alongside, coverage.
+11. **A filter never rejects on absent evidence.** A criterion a record carries nothing to
+    answer — an oblique against a scale, an undated row against a date, a `Held` code the app
+    has not seen — leaves the record in the listing, and the UI says how many frames are on
+    screen without having been tested. Dropping them would be stating a fact the file does not
+    contain, and silently keeping them would overstate what the filter did.
+12. **Scale descriptions describe the catalogue's own number.** The detail bands are a
+    presentation of the supplied nominal scale and nothing else. They do not claim a resolution
+    for a print nobody has seen, and no frame moves band unless its scale says so.
 
 ## 9. Roadmap
 
@@ -373,12 +400,25 @@ do when wrong. A change that touches any of them needs a test.
    verdict the data cannot support. The geometry is plane arithmetic in National Grid metres
    (`domain/geometry.ts`, `domain/coverage.ts`); drawing is hand-rolled on Leaflet rather than
    taken from a plugin, because two shapes do not justify one.
-7. **Export** — GeoJSON/KML of the chosen frames, and a shortlist back out as a spreadsheet
+7. ~~**Narrowing the listing**~~ — *done.* Four questions, asked one at a time, that take fifty
+   frames down to the handful worth ordering: how much detail, roughly when, how much of the site
+   has to be in the frame, and whether a print already exists. The first is the reason the rest
+   exists. A catalogue says `1:10 500` and almost nobody buying a photograph knows what that
+   means, so the scale is asked for as a slider of plain descriptions — a landscape in one frame
+   at one end, individual houses and their gardens at the other — with the denominator shown
+   alongside as the thing it actually is rather than as the question. Every band says what it
+   costs as well as what it buys, because a finer frame is a smaller picture of less ground and
+   the finest frames in a listing are the likeliest to miss the site. Nothing is a submit step:
+   the map takes the dropped frames off and the table leaves their rows out as each answer is
+   given. A question the listing cannot answer is not asked at all, and a frame the filter has
+   no way of judging stays on screen with the count saying so (§8.11).
+8. **Export** — GeoJSON/KML of the chosen frames, and a shortlist back out as a spreadsheet
    carrying the provenance columns needed to place an order.
 
-Milestones 1–4 were the walking skeleton, 5 made it a comparison tool, and 6 answers the question
-the app exists for: **which of these frames covers my site?** What is left is getting the answer
-back out — a shortlist, with the columns a supplier needs to take an order.
+Milestones 1–4 were the walking skeleton, 5 made it a comparison tool, 6 answers the question the
+app exists for — **which of these frames covers my site?** — and 7 lets the customer ask it in
+their own terms rather than the catalogue's. What is left is getting the answer back out: a
+shortlist, with the columns a supplier needs to take an order.
 
 ## Open questions
 

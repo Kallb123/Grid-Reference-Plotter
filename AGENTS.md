@@ -11,13 +11,14 @@ The repository was deliberately reset. The previous Create React App implementat
 removed; [`archive/`](archive/) holds the coordinate maths and the old implementation for
 reference.
 
-Milestones 1 to 6 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
+Milestones 1 to 7 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
 exists, `src/domain/` carries grid reference parsing, the datum transform, the footprint geometry,
-the plot bounds and the coverage maths, `src/io/` reads a supplier workbook into records and
-issues, and `src/composables/` + `src/components/` join the two to a Leaflet map and a sortable
-table — drop a workbook, see the footprints drawn and framed, mark the site you want photographs
-of, and read off which frames cover it and by how much. Next up is export (milestone 7): the
-chosen frames back out as GeoJSON, and a shortlist as a spreadsheet carrying the columns a
+the plot bounds, the coverage maths, the scale bands and the listing filter, `src/io/` reads a
+supplier workbook into records and issues, and `src/composables/` + `src/components/` join the two
+to a Leaflet map and a sortable table — drop a workbook, see the footprints drawn and framed, mark
+the site you want photographs of, read off which frames cover it and by how much, and answer four
+questions that narrow fifty frames to the handful worth ordering. Next up is export (milestone 8):
+the chosen frames back out as GeoJSON, and a shortlist as a spreadsheet carrying the columns a
 supplier needs to take an order.
 
 ## Commands
@@ -88,6 +89,16 @@ the derivations.
 10. **`wgs84ToGrid` throws off the National Grid.** It takes positions the *user* supplies, and
     nothing stops someone panning to France and clicking. Callers handle it; `useAreaOfInterest`
     refuses the site with a reason rather than letting the exception reach a render.
+11. **A filter criterion a record cannot answer never rejects it.** An oblique has no scale, a
+    listing may give no date, and `Held` carries codes this app has not seen. None of those is
+    evidence against a frame, so `domain/filter` keeps it and reports the criterion as unjudged
+    — and the UI says how many frames are on screen without having been tested. Dropping them
+    would state something the file does not contain; keeping them quietly would overstate what
+    the filter did.
+12. **The detail bands describe the catalogue's scale, not the photograph.** `domain/detail`
+    turns a supplied nominal denominator into words. It claims no resolution for a print nobody
+    has seen, and a band changes only when the scale does. The words are also a trade in both
+    directions: a finer band means a smaller picture of less ground, and every band says so.
 
 ## Testing
 
@@ -121,6 +132,15 @@ The domain layer carries the test burden, and it can: it is pure functions.
   displayed as — dates chronologically, scale by denominator, frame identifiers naturally so
   frame 9 precedes frame 23; a row with nothing in the column last in *both* directions; ties
   left in the supplier's order.
+- Scale bands (`detail.ts`): the bands tile the scales with no gap; a survey flown at exactly a
+  boundary scale lands in the finer band; the sample's 1:2500 to 1:12 000 land where a customer
+  would expect; the outer bands are stated open-ended rather than given an invented limit.
+- The filter (`filter.ts`): each criterion applied on its own and all of them together; a year
+  range inclusive at both ends; and, for every criterion, a record that cannot answer it kept
+  *and* reported as unjudged — an oblique against a scale, an undated row against a date, an
+  unrecognised `Held` code against a print. A filter that asks nothing reports nothing unjudged.
+- The wizard's bookkeeping (`useFrameFilter`): the hidden set and the counts agree with each
+  other; questions the listing cannot answer are not offered; a new file starts unfiltered.
 
 Build fixtures from `INPUT-FORMAT.md` §3 rather than committing supplier files — those are
 customer data and third-party catalogue records, and they stay out of the repository.
@@ -142,7 +162,11 @@ UI tests are worth writing for parsing-to-display wiring and not much else.
 - Don't invent a footprint for a record that doesn't support one. Plausible-looking output
   that isn't derivable from the data is worse than no output. The same rule applies to coverage:
   an oblique gets a distance, never a percentage, and a dropped pin is a point rather than a
-  circle of some radius nobody supplied.
+  circle of some radius nobody supplied. It applies to filtering too: a frame the filter cannot
+  judge is kept and reported, never dropped on the strength of a field the file doesn't carry.
+- Don't offer a control the loaded listing cannot answer. The wizard drops the question when
+  there are no scales, no dates, no site marked or no `Held` codes — a control that cannot change
+  anything reads as a broken one.
 - Don't add a Leaflet drawing plugin. The area of interest is a pin and a polygon, drawn by hand
   in `useLeafletMap` — a plugin would bring its own toolbar and a second UI vocabulary for two
   shapes.

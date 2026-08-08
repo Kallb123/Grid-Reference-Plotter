@@ -82,6 +82,16 @@ export interface LeafletMapSources {
    * than kept inside the map, so pointing at a row lights up its polygon and vice versa.
    */
   hoveredId: Ref<string | null>
+  /**
+   * Frames the listing filter has put out of the way.
+   *
+   * Removed from the map rather than faded, which is the opposite of what a *miss* gets. A miss
+   * is a fact about the frame that is worth seeing — the run went a kilometre north, and that is
+   * the shape of the sortie. A frame filtered out is one the user has said they are not
+   * interested in, and leaving thirty of those on the map faded would defeat the point of
+   * saying so. It comes straight back the moment the filter is relaxed.
+   */
+  hiddenIds: Ref<ReadonlySet<string>>
   /** The site to draw, or `null` when none has been marked. */
   area: Ref<AreaOfInterest | null>
   /** What every frame does about that site, so the ones that miss can get out of the way. */
@@ -235,7 +245,26 @@ export function useLeafletMap(
       )
     }
 
+    applyVisibility()
     applyStyles()
+  }
+
+  /**
+   * Add or remove layers to match the listing filter.
+   *
+   * Adding and removing rather than redrawing: the filter changes as a slider is dragged, and
+   * rebuilding fifty polygons on every frame of that would be visible. The layers are built once
+   * per load and only their membership of the group moves.
+   */
+  function applyVisibility(): void {
+    const hidden = sources.hiddenIds.value
+    for (const [id, frame] of drawnById) {
+      const show = !hidden.has(id)
+      for (const { layer } of frame.layers) {
+        if (show && !frames.hasLayer(layer)) layer.addTo(frames)
+        else if (!show && frames.hasLayer(layer)) frames.removeLayer(layer)
+      }
+    }
   }
 
   /**
@@ -312,7 +341,10 @@ export function useLeafletMap(
     }
 
     const footprint = sources.footprints.value.find((candidate) => candidate.record.id === selectedId)
-    if (footprint === undefined) return
+    // Nothing to mark the centre of if the frame itself is not drawn: a selection can outlive
+    // the frame's place in a narrowed listing by a tick, and a lone centre dot with no polygon
+    // round it would be a frame the map is claiming to show and is not.
+    if (footprint === undefined || sources.hiddenIds.value.has(selectedId ?? '')) return
 
     const centre = toLatLng(footprint.centre)
     L.circle(centre, {
@@ -509,6 +541,15 @@ export function useLeafletMap(
   watch([sources.footprints, sources.points], () => {
     draw()
     fitToData()
+  })
+
+  // Narrowing the listing changes which frames are drawn, not what any of them is: the layers
+  // stay built and only their membership of the group moves. A popup belonging to a frame that
+  // has just been filtered out would be left floating over ground nothing is claiming any more.
+  watch(sources.hiddenIds, () => {
+    map?.closePopup()
+    applyVisibility()
+    applyStyles()
   })
 
   watch(sources.selectedId, () => {
