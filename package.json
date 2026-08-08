@@ -14,11 +14,13 @@
   },
   "dependencies": {
     "geodesy": "^2.4.0",
+    "leaflet": "^1.9.4",
     "vue": "^3.5.41",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/geodesy": "^2.2.8",
+    "@types/leaflet": "^1.9.22",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/eslint-config-typescript": "^14.6.0",
     "@vue/test-utils": "^2.4.11",

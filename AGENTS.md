@@ -11,11 +11,12 @@ The repository was deliberately reset. The previous Create React App implementat
 removed; [`archive/`](archive/) holds the coordinate maths and the old implementation for
 reference.
 
-Milestones 1 to 3 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
-exists, `src/domain/` carries grid reference parsing, the datum transform and the footprint
-geometry, and `src/io/` reads a supplier workbook into records and issues. Both layers have
-test suites. **There is no useful UI yet** — `App.vue` is a placeholder, and nothing in the app
-calls `parseWorkbook` yet. Next up is the map (milestone 4): file drop, draw, fit bounds.
+Milestones 1 to 4 of `ARCHITECTURE.md` §9 are done, which is the walking skeleton: the Vite +
+Vue 3 + TypeScript scaffold exists, `src/domain/` carries grid reference parsing, the datum
+transform, the footprint geometry and the plot bounds, `src/io/` reads a supplier workbook into
+records and issues, and `src/composables/` + `src/components/` join the two to a Leaflet map —
+drop a workbook, see the footprints drawn and framed, click one for its numbers. Next up is the
+table and linked selection (milestone 5).
 
 ## Commands
 
@@ -88,6 +89,11 @@ The domain layer carries the test burden, and it can: it is pure functions.
   cells; `Total Frames` trailer skipped and used to check the row count; `5356A` kept as text;
   `23.0` rendered `23`; a malformed row landing in `ParseIssue[]` without taking the others
   with it.
+- Plot bounds: a box covering every corner of every footprint; a lone oblique framed as its
+  ±50 m square rather than a dimensionless point.
+- The load path (`usePhotoSet`): real workbook bytes in, footprints and points out, with the
+  worked example's numbers asserted at the far end; a bad row reported without losing the good
+  ones; a superseded load not overwriting the one that replaced it.
 
 Build fixtures from `INPUT-FORMAT.md` §3 rather than committing supplier files — those are
 customer data and third-party catalogue records, and they stay out of the repository.

@@ -12,8 +12,9 @@ For the coordinate and photogrammetry maths, read [`archive/MATHS.md`](archive/M
 
 ## Orientation
 
-The Vue 3 + Vite scaffold, the pure domain layer and the workbook reader (`src/io/`) exist; the
-map and the rest of the UI do not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
+The Vue 3 + Vite scaffold, the pure domain layer, the workbook reader (`src/io/`) and the map
+(`src/composables/`, `src/components/`) exist. The table, the area of interest and the exports do
+not. `ARCHITECTURE.md` §9 tracks what is done and what is next.
 
 ## Notes for this codebase
 
@@ -35,3 +36,7 @@ map and the rest of the UI do not. `ARCHITECTURE.md` §9 tracks what is done and
   height or bearing. A point is the honest answer; a plausible-looking trapezoid is not.
 - **Supplier files stay out of the repository.** They are customer enquiry data. Build test
   fixtures from the documented layout instead.
+- **Nothing from a workbook goes near `innerHTML`.** Map popups are built outside the Vue
+  template, in `useLeafletMap`, so the escaping Vue would have done is not there. Build them as
+  DOM nodes with `textContent` — a film description is attacker-controlled text in a tool whose
+  premise is that the user's file never leaves their machine.
