@@ -121,17 +121,27 @@ const counts = computed(() => {
 </template>
 
 <style scoped>
+/*
+ * Narrow: panel, map and table down one scrolling page. From 60rem: the panel alongside, and the
+ * page locked to the viewport so map and table share one screen.
+ *
+ * The lock is deliberately not applied to the narrow layout. The panel on its own is taller than
+ * a phone screen, so locking the page to the viewport height left the work column nothing: its
+ * track sized to zero, the map overflowed it and painted over the panel's own footer, and the
+ * table — whose scroller is allowed to be zero-high — collapsed to its border and vanished. A
+ * document that scrolls is the honest shape for a screen that cannot hold all three at once.
+ */
 .app {
   display: grid;
-  grid-template-rows: auto 1fr;
-  height: 100vh;
-  height: 100dvh;
+  grid-template-rows: auto auto;
 }
 
 @media (width >= 60rem) {
   .app {
     grid-template-rows: 1fr;
     grid-template-columns: minmax(20rem, 26rem) 1fr;
+    height: 100vh;
+    height: 100dvh;
   }
 }
 
@@ -182,19 +192,29 @@ const counts = computed(() => {
 }
 
 /*
- * Map above, table below. `auto` rather than a fixed split: the table sizes to its own content up
- * to the cap it sets itself, so a listing of three frames does not reserve half the window, and
- * the map keeps the rest.
+ * Map above, table below. Stacked, both size to their own content — the map to the height it
+ * gives itself for the narrow layout, the table to its rows — and the page carries the scrolling.
+ */
+.app__work {
+  display: grid;
+  grid-template-rows: auto auto;
+  /* Without this the table's widest row sets the column width and drags the whole page wider. */
+  min-width: 0;
+}
+
+/*
+ * Sharing one locked screen, the split is `auto` for the table rather than fixed: it sizes to its
+ * own content up to the cap it sets itself, so a listing of three frames does not reserve half the
+ * window, and the map keeps the rest.
  *
  * `min-content` rather than `0` as the map's floor: with a floor of zero the track can be sized
  * smaller than the map's own minimum height, and the map then overflows the track and paints over
  * the table. Sized from its content, a window too short for both scrolls instead of overlapping.
  */
-.app__work {
-  display: grid;
-  grid-template-rows: minmax(min-content, 1fr) auto;
-  min-height: 0;
-  /* Without this the table's widest row sets the column width and drags the whole page wider. */
-  min-width: 0;
+@media (width >= 60rem) {
+  .app__work {
+    grid-template-rows: minmax(min-content, 1fr) auto;
+    min-height: 0;
+  }
 }
 </style>

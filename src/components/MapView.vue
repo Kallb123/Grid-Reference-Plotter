@@ -160,6 +160,20 @@ const prompt = computed(() => {
   height: 100%;
 }
 
+/*
+ * Stacked on a narrow screen there is no viewport-height track to fill, so the map takes a height
+ * of its own: most of the screen, because it is the main view, but short enough that the listing
+ * below it is reachable on the same scroll rather than a screen further down. The floor is for
+ * a phone held sideways, where 60% of the height is not a map worth looking at.
+ */
+@media (width < 60rem) {
+  .map {
+    height: 60vh;
+    height: 60dvh;
+    min-height: 18rem;
+  }
+}
+
 .map__canvas {
   flex: 1;
   /* Big enough to be a map, but it gives way on a short window rather than pushing the table off. */
