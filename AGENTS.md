@@ -49,6 +49,10 @@ Run `npm run test` and `npm run typecheck` before committing. If you change anyt
   152.4 mm to 152 mm is a real error in real data.
 - **Fail loudly per row, not per file.** One malformed line must not discard the other
   forty-nine. Collect it in `ParseIssue[]` with a line number and a readable reason.
+- **No colour, radius or typeface written into a component.** `src/styles.css` holds the brand's
+  tokens; take `var(--ink)`, `var(--accent)`, `var(--radius-md)` and the rest from there. The
+  exception is the map: Leaflet styles paths through JavaScript, so those colours are named
+  constants in `useLeafletMap` and the legend imports them rather than repeating the hex.
 - Prefer plain functions to classes. Prefer explicit types on module boundaries.
 
 ## Domain rules that catch people out

@@ -8,6 +8,23 @@
       name="description"
       content="Plot UK aerial photography footprints from a supplier's grid references. Runs entirely in your browser."
     />
+
+    <!--
+      The brand icon set. The SVG is the one browsers should prefer — it is scalable and follows
+      the tab's colour scheme; the PNGs are the fallback and the sizes Android and iOS ask for by
+      name. The source files are the design kit's, unchanged apart from the SVG's colour-scheme
+      rule. See public/brand/ for the lockups.
+    -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="icon" href="/favicon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Ink and ground from the brand palette, so the browser chrome matches the page. -->
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f3f2f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#201e1d" media="(prefers-color-scheme: dark)" />
   </head>
   <body>
     <div id="app"></div>

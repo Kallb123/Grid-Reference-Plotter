@@ -34,11 +34,22 @@ const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
-/** Vertical footprints and their centres. */
-const VERTICAL_COLOUR = '#1d4ed8'
-/** Obliques, distinguished by colour as well as by shape — they are a different claim. */
-const OBLIQUE_COLOUR = '#b45309'
-const SELECTED_COLOUR = '#b91c1c'
+/*
+ * The plot's colours, from the brand palette, read off the mark: the frames are drawn in ink, and
+ * the red is the ground the frame you are looking at covers. Exported because the map's legend
+ * has to show the same three swatches, and a legend that drifts from the plot is worse than none.
+ *
+ * The palette is deliberately mono, so shape carries the vertical/oblique distinction — a
+ * rectangle is an extent, a dot is a position — and the colours reinforce it rather than
+ * carrying it alone.
+ */
+
+/** Vertical footprints and their centres: brand ink. */
+export const VERTICAL_COLOUR = '#201e1d'
+/** Obliques, a deep step of the accent — a different claim, and not to be read as an extent. */
+export const OBLIQUE_COLOUR = '#7c1405'
+/** The accent itself, spent on the one frame being inspected. */
+export const SELECTED_COLOUR = '#ec3013'
 
 export interface LeafletMapSources {
   footprints: Ref<readonly Footprint[]>

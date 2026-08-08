@@ -54,7 +54,7 @@ const summary = computed(() => {
 <style scoped>
 .detail {
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.75rem 0.9rem;
 }
 

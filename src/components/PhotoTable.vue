@@ -178,7 +178,7 @@ watch(
   /* The rows do not wrap, so every box between here and the viewport has to be allowed to be
      narrower than its content — otherwise the widest row widens the whole page instead. */
   min-width: 0;
-  border-top: 1px solid var(--rule);
+  border-top: var(--rule-weight) solid var(--rule);
   background: var(--paper);
 }
 
@@ -191,25 +191,36 @@ watch(
 
 .table__title {
   margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
   font-size: 0.85rem;
-  font-weight: 600;
 }
 
 .table__order {
   color: var(--ink-muted);
+  font-family: var(--font-body);
   font-weight: 400;
 }
 
 .table__toggle {
   margin-left: auto;
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   padding: 0.15rem 0.5rem;
   background: none;
-  color: inherit;
-  font: inherit;
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
   font-size: 0.8rem;
   cursor: pointer;
+}
+
+.table__toggle:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.table__toggle:active {
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
 }
 
 .table__scroll {
@@ -238,7 +249,8 @@ watch(
   position: sticky;
   top: 0;
   z-index: 1;
-  border-bottom: 1px solid var(--rule);
+  /* The header rule is one of the strong ones; the row rules below it are hairlines. */
+  border-bottom: var(--rule-weight) solid var(--rule);
   padding: 0;
   background: var(--paper);
   text-align: left;
@@ -247,14 +259,20 @@ watch(
 .table__sort {
   width: 100%;
   border: none;
-  padding: 0.3rem 0.6rem;
+  padding: 0.35rem 0.6rem;
   background: none;
   color: var(--ink-muted);
-  font: inherit;
-  font-size: 0.78rem;
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-align: inherit;
   cursor: pointer;
+}
+
+.table__sort:hover {
+  color: var(--ink);
 }
 
 .table__arrow {
@@ -281,9 +299,10 @@ watch(
   background: var(--accent-wash);
 }
 
+/* The same accent the map paints the selected frame in, so the two views agree. */
 .table__row--selected {
   background: var(--accent-wash);
-  box-shadow: inset 3px 0 0 var(--danger);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* Obliques are a different claim about the ground, and are marked as one here as on the map. */

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" fill="none">
+  <!--
+    The brand mark at favicon weight: a wider offset and a heavier stroke than the header mark, so
+    the red field survives 16px. The `.ink` rule follows the tab's colour scheme; the stroke
+    attribute is the fallback for renderers that ignore the stylesheet. The red is never recoloured.
+  -->
+  <style>
+    .ink { stroke: #201e1d; }
+    @media (prefers-color-scheme: dark) {
+      .ink { stroke: #f3f2f2; }
+    }
+  </style>
+  <rect class="ink" x="9" y="9" width="54" height="54" stroke="#201e1d" stroke-width="9" fill="none"></rect>
+  <rect class="ink" x="37" y="37" width="54" height="54" stroke="#201e1d" stroke-width="9" fill="none"></rect>
+  <rect x="37" y="37" width="26" height="26" fill="#ec3013"></rect>
+</svg>
