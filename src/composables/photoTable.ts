@@ -12,6 +12,7 @@
  */
 
 import { formatNumber, formatSquareKm } from './photoSummary'
+import type { FrameCoverage, SiteCoverage } from '../domain/coverage'
 import type { Footprint, PlottedPoint } from '../domain/types'
 
 /** Shown where a value is not derivable — an oblique's scale, a listing with no date. */
@@ -20,6 +21,8 @@ const ABSENT = '—'
 export type PhotoColumnKey =
   | 'frame'
   | 'kind'
+  | 'covered'
+  | 'margin'
   | 'date'
   | 'centre'
   | 'scale'
@@ -34,16 +37,52 @@ export interface PhotoColumn {
   numeric?: boolean
   /** Header tooltip, for a column whose values are catalogue codes or need a caveat. */
   description?: string
+  /**
+   * Shown only once an area of interest has been marked. There is nothing to put in these
+   * columns before that, and an empty column invites the reader to wonder what they did wrong.
+   */
+  site?: boolean
+  /**
+   * Sort descending on the first click rather than ascending.
+   *
+   * For most columns ascending is the interesting end — the earliest date, the finest scale. For
+   * the two coverage columns it is the other way round: the frame that covers the most of the
+   * site, with the most room to spare, is the answer to the question the column exists to ask.
+   */
+  descendingFirst?: boolean
 }
 
 /**
- * The columns, in the order a customer reads them: what the frame is, when it was flown, and
- * how much ground it covers. The ordering columns (library number, run, film held by) stay in
- * the detail panel — they are what you quote once you have chosen, not what you choose by.
+ * The columns, in the order a customer reads them: what the frame is, what it does about their
+ * site, when it was flown, and how much ground it covers. The ordering columns (library number,
+ * run, film held by) stay in the detail panel — they are what you quote once you have chosen,
+ * not what you choose by.
+ *
+ * The two site columns sit right after the frame's identity because, once a site has been
+ * marked, they are the answer: everything to the right of them is how you choose between the
+ * frames that cover it.
  */
 export const PHOTO_COLUMNS: readonly PhotoColumn[] = [
   { key: 'frame', label: 'Frame' },
   { key: 'kind', label: 'Type' },
+  {
+    key: 'covered',
+    label: 'Site covered',
+    numeric: true,
+    site: true,
+    descendingFirst: true,
+    description: 'How much of your site falls inside the frame’s indicative extent',
+  },
+  {
+    key: 'margin',
+    label: 'Edge margin',
+    numeric: true,
+    site: true,
+    descendingFirst: true,
+    description:
+      'How far your site sits from the frame’s nearest edge — “in” is room to spare, ' +
+      '“out” is the size of the miss',
+  },
   { key: 'date', label: 'Date' },
   { key: 'centre', label: 'Centre point', description: 'Six-figure grid reference, so ±50 m' },
   { key: 'scale', label: 'Scale', numeric: true, description: 'The survey’s nominal target scale' },
@@ -56,6 +95,11 @@ export const PHOTO_COLUMNS: readonly PhotoColumn[] = [
   { key: 'area', label: 'Area', numeric: true },
   { key: 'held', label: 'Held', description: 'P = print held; N = no print held' },
 ]
+
+/** The columns to show: the site's two only once there is a site to measure against. */
+export function photoColumns(hasArea: boolean): readonly PhotoColumn[] {
+  return hasArea ? PHOTO_COLUMNS : PHOTO_COLUMNS.filter((column) => column.site !== true)
+}
 
 export interface PhotoCell {
   /** What the cell shows. Never empty — an absent value shows an em dash. */
@@ -88,11 +132,15 @@ export type SortDirection = 'ascending' | 'descending'
 export function buildRows(
   footprints: readonly Footprint[],
   points: readonly PlottedPoint[],
+  coverage: SiteCoverage | null = null,
 ): PhotoRow[] {
-  return [...footprints.map(footprintRow), ...points.map(pointRow)]
+  return [
+    ...footprints.map((footprint) => footprintRow(footprint, coverage)),
+    ...points.map((point) => pointRow(point, coverage)),
+  ]
 }
 
-function footprintRow(footprint: Footprint): PhotoRow {
+function footprintRow(footprint: Footprint, coverage: SiteCoverage | null): PhotoRow {
   const { record, groundWidthM, groundHeightM } = footprint
   const areaM2 = groundWidthM * groundHeightM
 
@@ -102,6 +150,7 @@ function footprintRow(footprint: Footprint): PhotoRow {
     cells: {
       frame: { text: record.id, sort: record.id },
       kind: { text: 'Vertical', sort: 'Vertical' },
+      ...siteCells(coverage?.frames.get(record.id) ?? null),
       ...dateCell(record.provenance.date),
       centre: { text: record.ref.text, sort: record.ref.text },
       // Sorted by the denominator, so 1:2500 — the finer scale, the bigger picture of less
@@ -117,11 +166,22 @@ function footprintRow(footprint: Footprint): PhotoRow {
   }
 }
 
-function pointRow(point: PlottedPoint): PhotoRow {
+function pointRow(point: PlottedPoint, coverage: SiteCoverage | null): PhotoRow {
   const { record } = point
   // Obliques carry no scale, focal length, height or bearing, so there is nothing to put in
   // these columns and nothing defensible to invent for them (INPUT-FORMAT.md §6).
   const noExtent = 'An oblique carries no scale, height or bearing, so no extent is derivable.'
+
+  // Which follows through to the site columns: with no extent there is nothing to intersect a
+  // site with. How far away the archive's reference for it lies is real and is worth knowing,
+  // but it is a distance and not coverage, so it is shown in the detail panel — where there is
+  // room to say which it is — rather than under a heading that would make it read as the other.
+  const proximity = coverage?.obliques.get(record.id) ?? null
+  const noCoverage =
+    proximity === null
+      ? noExtent
+      : `${noExtent} Its map reference is ${formatNumber(proximity.distanceM)} m from your site; ` +
+        'choose the row to see what that does and does not mean.'
 
   return {
     id: record.id,
@@ -129,6 +189,8 @@ function pointRow(point: PlottedPoint): PhotoRow {
     cells: {
       frame: { text: record.id, sort: record.id },
       kind: { text: 'Oblique', sort: 'Oblique' },
+      covered: { text: ABSENT, sort: null, note: noCoverage },
+      margin: { text: ABSENT, sort: null, note: noCoverage },
       ...dateCell(record.provenance.date),
       centre: { text: record.ref.text, sort: record.ref.text },
       scale: { text: ABSENT, sort: null, note: noExtent },
@@ -137,6 +199,50 @@ function pointRow(point: PlottedPoint): PhotoRow {
       ...heldCell(record.provenance.held),
     },
   }
+}
+
+/**
+ * What a frame does about the site, as two comparable columns.
+ *
+ * `covered` is how much of the site is in the picture at all; `margin` is how comfortably. They
+ * are separate because they disagree in the case that matters: two frames can both contain the
+ * whole site while one holds it in the middle and the other clips it at the edge, and the
+ * archive's guide warns that the second is the common one.
+ *
+ * Both sort on the underlying metres or fraction, and both sort `null` — never measured — last,
+ * so no ordering can promote a frame that was never compared with the site.
+ */
+function siteCells(coverage: FrameCoverage | null): { covered: PhotoCell; margin: PhotoCell } {
+  if (coverage === null) {
+    return { covered: { text: ABSENT, sort: null }, margin: { text: ABSENT, sort: null } }
+  }
+
+  const note = coverage.notes.join(' ')
+
+  const covered: PhotoCell = {
+    text:
+      coverage.verdict === 'full'
+        ? 'All'
+        : coverage.verdict === 'none'
+          ? 'None'
+          : `${Math.round(coverage.coveredFraction * 100)}%`,
+    sort: coverage.coveredFraction,
+    note,
+  }
+
+  const metres = formatNumber(Math.abs(coverage.edgeClearanceM))
+  const margin: PhotoCell = {
+    text:
+      coverage.edgeClearanceM > 0
+        ? `${metres} m in`
+        : coverage.edgeClearanceM < 0
+          ? `${metres} m out`
+          : 'on the edge',
+    sort: coverage.edgeClearanceM,
+    note,
+  }
+
+  return { covered, margin }
 }
 
 /**

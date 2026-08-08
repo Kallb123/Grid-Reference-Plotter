@@ -12,15 +12,19 @@
  */
 
 import { computed, nextTick, ref, watch } from 'vue'
+import type { SiteCoverage } from '../domain/coverage'
 import type { Footprint, PlottedPoint } from '../domain/types'
-import { PHOTO_COLUMNS, buildRows, sortRows } from '../composables/photoTable'
-import type { PhotoColumnKey, SortDirection } from '../composables/photoTable'
+import { buildRows, photoColumns, sortRows } from '../composables/photoTable'
+import type { PhotoColumn, PhotoColumnKey, SortDirection } from '../composables/photoTable'
 
 const props = defineProps<{
   footprints: readonly Footprint[]
   points: readonly PlottedPoint[]
   selectedId: string | null
   hoveredId: string | null
+  coverage: SiteCoverage | null
+  /** Which rows survive the "leave out the misses" filter, decided in `useAreaOfInterest`. */
+  keep: (id: string) => boolean
 }>()
 
 const emit = defineEmits<{
@@ -33,35 +37,84 @@ const sortKey = ref<PhotoColumnKey | null>(null)
 const sortDirection = ref<SortDirection>('ascending')
 const isOpen = ref(true)
 
+const columns = computed(() => photoColumns(props.coverage !== null))
+
 const rows = computed(() =>
-  sortRows(buildRows(props.footprints, props.points), sortKey.value, sortDirection.value),
+  sortRows(
+    buildRows(props.footprints, props.points, props.coverage).filter((row) => props.keep(row.id)),
+    sortKey.value,
+    sortDirection.value,
+  ),
+)
+
+const hiddenCount = computed(
+  () => props.footprints.length + props.points.length - rows.value.length,
 )
 
 const columnHeader = computed(() =>
-  PHOTO_COLUMNS.map((column) => ({
+  columns.value.map((column) => ({
     ...column,
     ariaSort: sortKey.value === column.key ? sortDirection.value : ('none' as const),
   })),
 )
 
 /**
- * First click sorts ascending, second reverses, third returns to the listing's own order.
+ * The moment a site is marked, order the listing by how well it is covered.
  *
- * The third state is there because the supplier's order is information — frames arrive grouped
- * by sortie and run — and once a table has been sorted there is otherwise no way back to it.
+ * This is the whole point of milestone 6: until a site exists the supplier's order is the most
+ * meaningful one there is, and the instant one exists it is not. Only an untouched sort is
+ * replaced — a user who has chosen to read the listing by date has made a decision, and marking
+ * a site is not a reason to overrule it.
+ */
+watch(
+  () => props.coverage !== null,
+  (hasSite) => {
+    if (!hasSite || sortKey.value !== null) return
+    sortKey.value = 'covered'
+    sortDirection.value = 'descending'
+  },
+)
+
+/**
+ * First click sorts the interesting way, second reverses, third returns to the listing's own
+ * order.
+ *
+ * Which way is interesting depends on the column: the earliest date and the finest scale are at
+ * the ascending end, but the best-covered frame is at the descending one, so the site's columns
+ * declare `descendingFirst` and start there. The third state is there because the supplier's
+ * order is information — frames arrive grouped by sortie and run — and once a table has been
+ * sorted there is otherwise no way back to it.
  */
 function toggleSort(key: PhotoColumnKey): void {
+  const first: SortDirection = firstDirection(key)
+
   if (sortKey.value !== key) {
     sortKey.value = key
-    sortDirection.value = 'ascending'
+    sortDirection.value = first
     return
   }
-  if (sortDirection.value === 'ascending') {
-    sortDirection.value = 'descending'
+  if (sortDirection.value === first) {
+    sortDirection.value = first === 'ascending' ? 'descending' : 'ascending'
     return
   }
   sortKey.value = null
   sortDirection.value = 'ascending'
+}
+
+/**
+ * Rows for frames measured against the site and found not to reach it.
+ *
+ * Faded to match the map, where the same frames are drawn faintly. They stay legible and stay
+ * selectable: a frame that misses by 80 m is worth being able to look at, and it is exactly the
+ * one whose ±50 m makes the verdict arguable.
+ */
+function misses(id: string): boolean {
+  return props.coverage?.frames.get(id)?.verdict === 'none'
+}
+
+function firstDirection(key: PhotoColumnKey): SortDirection {
+  const column: PhotoColumn | undefined = columns.value.find((candidate) => candidate.key === key)
+  return column?.descendingFirst === true ? 'descending' : 'ascending'
 }
 
 function sortIndicator(key: PhotoColumnKey): string {
@@ -96,11 +149,14 @@ watch(
 </script>
 
 <template>
-  <section v-if="rows.length > 0" class="table">
+  <section v-if="rows.length > 0 || hiddenCount > 0" class="table">
     <header class="table__bar">
       <h2 class="table__title">
         {{ rows.length }} frame{{ rows.length === 1 ? '' : 's' }}
-        <span v-if="sortKey === null" class="table__order">in listing order</span>
+        <span v-if="hiddenCount > 0" class="table__order">
+          — {{ hiddenCount }} that {{ hiddenCount === 1 ? 'misses' : 'miss' }} the site left out
+        </span>
+        <span v-else-if="sortKey === null" class="table__order">in listing order</span>
       </h2>
       <button type="button" class="table__toggle" :aria-expanded="isOpen" @click="isOpen = !isOpen">
         {{ isOpen ? 'Hide table' : 'Show table' }}
@@ -145,6 +201,7 @@ watch(
               'table__row--selected': row.id === props.selectedId,
               'table__row--hovered': row.id === props.hoveredId,
               'table__row--oblique': row.kind === 'oblique',
+              'table__row--misses': misses(row.id),
             }"
             :aria-current="row.id === props.selectedId ? 'true' : undefined"
             @click="emit('select', row.id === props.selectedId ? null : row.id)"
@@ -156,7 +213,7 @@ watch(
             @blur="emit('hover', null)"
           >
             <td
-              v-for="column in PHOTO_COLUMNS"
+              v-for="column in columns"
               :key="column.key"
               :title="row.cells[column.key].note"
               :class="{ 'table__cell--numeric': column.numeric }"
@@ -308,6 +365,11 @@ watch(
 /* Obliques are a different claim about the ground, and are marked as one here as on the map. */
 .table__row--oblique td:first-child {
   font-style: italic;
+}
+
+/* The same fading the map gives a frame that does not reach the site. */
+.table__row--misses td {
+  color: var(--ink-muted);
 }
 
 .table__row:focus-visible {
