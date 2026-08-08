@@ -11,8 +11,18 @@
  * to quietly drop them (ARCHITECTURE.md §8.4).
  */
 
+import { siteGeometry } from '../domain/coverage'
+import { formatGridRef, gridToWgs84 } from '../domain/osgb'
 import { metresToFeet, squareMetresToSquareMiles } from '../domain/units'
-import type { Footprint, LngLat, PlottedPoint, Provenance } from '../domain/types'
+import type { CoverageVerdict, FrameCoverage, SiteProximity } from '../domain/coverage'
+import type {
+  AreaOfInterest,
+  Footprint,
+  GridPoint,
+  LngLat,
+  PlottedPoint,
+  Provenance,
+} from '../domain/types'
 
 export interface SummaryLine {
   label: string
@@ -37,12 +47,22 @@ export interface PhotoSummary {
   notes: string[]
 }
 
-/** A vertical frame: its ground extent and the numbers it was derived from. */
-export function footprintSummary(footprint: Footprint): PhotoSummary {
+/**
+ * A vertical frame: its ground extent and the numbers it was derived from.
+ *
+ * Coverage, where a site has been marked, is put at the top rather than the bottom. Once there is
+ * an area of interest it is the first thing anyone wants from a frame, and the extent and the
+ * scale are how you choose between the frames that have it.
+ */
+export function footprintSummary(
+  footprint: Footprint,
+  coverage: FrameCoverage | null = null,
+): PhotoSummary {
   const { record, groundWidthM, groundHeightM, flyingHeightM, centre, uncertaintyM } = footprint
   const { provenance, ref, film, scaleDenominator } = record
 
   const lines: SummaryLine[] = [
+    ...coverageLines(coverage),
     { label: 'Centre point', value: `${ref.text} (±${formatNumber(uncertaintyM)} m)` },
     { label: 'Position', value: formatPosition(centre) },
     {
@@ -67,12 +87,15 @@ export function footprintSummary(footprint: Footprint): PhotoSummary {
     subtitle: `Vertical frame${provenance.date === undefined ? '' : `, ${provenance.date}`}`,
     lines,
     provenance: provenanceLines(provenance),
-    notes: footprint.notes,
+    notes: [...footprint.notes, ...(coverage?.notes ?? [])],
   }
 }
 
 /** An oblique: a point, and an explicit statement of why there is no shape around it. */
-export function pointSummary(point: PlottedPoint): PhotoSummary {
+export function pointSummary(
+  point: PlottedPoint,
+  proximity: SiteProximity | null = null,
+): PhotoSummary {
   const { record, position, uncertaintyM } = point
   const { provenance, ref, filmType } = record
 
@@ -81,6 +104,16 @@ export function pointSummary(point: PlottedPoint): PhotoSummary {
     { label: 'Position', value: formatPosition(position) },
   ]
 
+  if (proximity !== null) {
+    lines.unshift({
+      label: 'Your site',
+      value:
+        proximity.distanceM === 0
+          ? 'inside your site — but see the note below'
+          : `${formatNumber(proximity.distanceM)} m away — but see the note below`,
+    })
+  }
+
   if (filmType !== undefined) lines.push({ label: 'Film', value: filmType })
 
   return {
@@ -88,8 +121,128 @@ export function pointSummary(point: PlottedPoint): PhotoSummary {
     subtitle: `Oblique photograph${provenance.date === undefined ? '' : `, ${provenance.date}`}`,
     lines,
     provenance: provenanceLines(provenance),
-    notes: point.notes,
+    notes: [...point.notes, ...(proximity?.notes ?? [])],
   }
+}
+
+/**
+ * What the frame does about the site, in words.
+ *
+ * Two lines rather than one, because they are two different questions and a frame can answer
+ * them differently: whether the site is in the picture, and whether it is in the picture
+ * *comfortably*. The archive's guide warns that a site "may be on the edge of" a photograph, and
+ * a summary that said only "covered" would be exactly the reassurance it is warning against.
+ */
+function coverageLines(coverage: FrameCoverage | null): SummaryLine[] {
+  if (coverage === null) return []
+
+  const percent = `${Math.round(coverage.coveredFraction * 100)}%`
+  const covered =
+    coverage.verdict === 'full'
+      ? 'all of it is inside this frame'
+      : coverage.verdict === 'none'
+        ? 'none of it is inside this frame'
+        : `${percent} of it is inside this frame`
+
+  const metres = formatNumber(Math.abs(coverage.edgeClearanceM))
+  const margin =
+    coverage.edgeClearanceM > 0
+      ? `${metres} m inside the nearest edge`
+      : coverage.edgeClearanceM < 0
+        ? `${metres} m outside the nearest edge`
+        : 'straddling an edge of the frame'
+
+  return [
+    { label: 'Your site', value: covered },
+    { label: 'Edge margin', value: margin },
+    { label: 'Off centre', value: `${formatNumber(coverage.offCentreM)} m from the frame’s centre` },
+  ]
+}
+
+/** What the user marked, described back to them so they can check it is where they meant. */
+export interface AreaSummary {
+  /** `"Dropped pin"` or `"Drawn outline"`. */
+  title: string
+  lines: SummaryLine[]
+}
+
+/**
+ * The area of interest, in the terms the rest of the app is in.
+ *
+ * The grid reference is quoted to eight figures — a 10 m square — because unlike the catalogue's
+ * six-figure centre points this is a position the user chose, and rounding it to 100 m would
+ * throw away precision they actually have. It is also the number they would give a supplier when
+ * asking what else covers the site, which is worth being able to copy off the screen.
+ */
+export function areaOfInterestSummary(area: AreaOfInterest): AreaSummary {
+  const site = siteGeometry(area)
+  const centre = gridToWgs84(site.centre)
+  const gridReference = tryFormatGridRef(site.centre)
+
+  const lines: SummaryLine[] = []
+  if (gridReference !== null) lines.push({ label: 'Grid reference', value: gridReference })
+  lines.push({ label: 'Position', value: formatPosition(centre) })
+
+  if (area.kind === 'polygon') {
+    lines.push(
+      { label: 'Corners', value: String(area.ring.length) },
+      { label: 'Area', value: formatSiteArea(site.areaM2) },
+    )
+  }
+
+  return { title: area.kind === 'point' ? 'Dropped pin' : 'Drawn outline', lines }
+}
+
+/**
+ * The headline the panel leads with: how the listing divides up against the site.
+ *
+ * Written as a sentence rather than three counts because the counts on their own invite the
+ * reader to add them up and wonder why they do not equal the number of frames — obliques are in
+ * the listing and cannot be in this tally, having no extent to measure. The sentence says which
+ * population it is talking about.
+ */
+export function describeTally(tally: Record<CoverageVerdict, number>): string {
+  const measured = tally.full + tally.partial + tally.none
+  if (measured === 0) return 'No frame in this listing has an extent to compare with your site.'
+
+  const parts = [`${tally.full} of ${measured} vertical frames cover all of your site`]
+  if (tally.partial > 0) parts.push(`${tally.partial} cover part of it`)
+  if (tally.none > 0) parts.push(`${tally.none} miss it`)
+
+  return `${parts.join(', ')}.`
+}
+
+/**
+ * A grid reference for the position, or `null` if it is not on the National Grid.
+ *
+ * Rounded to the nearest metre first. A grid reference names the square a position falls in, so
+ * the digits are a truncation — and this position has been through the datum transform and back,
+ * which leaves a couple of millimetres of error. Without the rounding a pin dropped exactly on a
+ * 10 m boundary reads as the square below it, for a discrepancy four orders of magnitude smaller
+ * than the square being named.
+ */
+function tryFormatGridRef(point: GridPoint): string | null {
+  const whole: GridPoint = {
+    easting: Math.round(point.easting),
+    northing: Math.round(point.northing),
+  }
+  try {
+    return formatGridRef(whole, 8)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A site's area in units a site is measured in.
+ *
+ * Hectares below a square kilometre: a field, a scheduled monument or a development site is
+ * hectares, and `formatArea`'s square kilometres and square miles — right for a photograph
+ * covering five of them — would render a two-hectare site as `0.02 km²`.
+ */
+export function formatSiteArea(squareMetres: number): string {
+  if (squareMetres < 1_000_000) return `${formatDecimal(squareMetres / 10_000)} ha`
+  return formatArea(squareMetres)
 }
 
 /**

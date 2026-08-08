@@ -11,13 +11,14 @@ The repository was deliberately reset. The previous Create React App implementat
 removed; [`archive/`](archive/) holds the coordinate maths and the old implementation for
 reference.
 
-Milestones 1 to 5 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
-exists, `src/domain/` carries grid reference parsing, the datum transform, the footprint geometry
-and the plot bounds, `src/io/` reads a supplier workbook into records and issues, and
-`src/composables/` + `src/components/` join the two to a Leaflet map and a sortable table — drop a
-workbook, see the footprints drawn and framed, compare them by date, scale or extent, and point at
-either view to light up the other. Next up is the area of interest (milestone 6), which is what
-turns "here are your frames" into "here are the ones that cover your site".
+Milestones 1 to 6 of `ARCHITECTURE.md` §9 are done: the Vite + Vue 3 + TypeScript scaffold
+exists, `src/domain/` carries grid reference parsing, the datum transform, the footprint geometry,
+the plot bounds and the coverage maths, `src/io/` reads a supplier workbook into records and
+issues, and `src/composables/` + `src/components/` join the two to a Leaflet map and a sortable
+table — drop a workbook, see the footprints drawn and framed, mark the site you want photographs
+of, and read off which frames cover it and by how much. Next up is export (milestone 7): the
+chosen frames back out as GeoJSON, and a shortlist as a spreadsheet carrying the columns a
+supplier needs to take an order.
 
 ## Commands
 
@@ -77,7 +78,16 @@ the derivations.
    source supplies a heading, so this is dormant — but it matters by tens of metres the day
    one does.
 8. **Do the rectangle geometry in eastings/northings,** then convert each corner. The grid is
-   a plane; treat it as one.
+   a plane; treat it as one. The same goes for anything measured against the user's area of
+   interest: bring the site back to grid metres with `wgs84ToGrid` and intersect there. Comparing
+   shapes in degrees is harder arithmetic for a worse answer.
+9. **A coverage figure is a comparison with an estimate.** The frame it was measured against is
+   an indicative extent positioned by a ±50 m centre point, so a site sitting 20 m inside a
+   frame's edge is not demonstrably inside it. `FrameCoverage.marginal` is that case; do not
+   drop it on the way to the screen.
+10. **`wgs84ToGrid` throws off the National Grid.** It takes positions the *user* supplies, and
+    nothing stops someone panning to France and clicking. Callers handle it; `useAreaOfInterest`
+    refuses the site with a reason rather than letting the exception reach a render.
 
 ## Testing
 
@@ -96,6 +106,14 @@ The domain layer carries the test burden, and it can: it is pure functions.
   with it.
 - Plot bounds: a box covering every corner of every footprint; a lone oblique framed as its
   ±50 m square rather than a dimensionless point.
+- Polygon geometry (`geometry.ts`): a square's area whichever way it is wound; a concave outline
+  measured by its own area and not its bounding box; a subject clipped to a convex ring, including
+  one cut into two separate pieces; the gap between two rings found from either direction.
+- Coverage (`coverage.ts`): a pin inside a frame and outside it, with the clearance signed the
+  right way; an outline wholly inside, straddling an edge, and clipped at a corner; a site nearer
+  the edge than the centre point's ±50 m flagged as marginal; an oblique given a distance and
+  never a verdict. Build the sites by converting known grid positions *to* WGS84 and handing those
+  in — that puts the round trip under test alongside the geometry.
 - The load path (`usePhotoSet`): real workbook bytes in, footprints and points out, with the
   worked example's numbers asserted at the far end; a bad row reported without losing the good
   ones; a superseded load not overwriting the one that replaced it.
@@ -122,7 +140,12 @@ UI tests are worth writing for parsing-to-display wiring and not much else.
   hard-coding a different guess is not. Update the document in the same change, and mark what
   is observed from a real sample versus inferred from the supplier's guide.
 - Don't invent a footprint for a record that doesn't support one. Plausible-looking output
-  that isn't derivable from the data is worse than no output.
+  that isn't derivable from the data is worse than no output. The same rule applies to coverage:
+  an oblique gets a distance, never a percentage, and a dropped pin is a point rather than a
+  circle of some radius nobody supplied.
+- Don't add a Leaflet drawing plugin. The area of interest is a pin and a polygon, drawn by hand
+  in `useLeafletMap` — a plugin would bring its own toolbar and a second UI vocabulary for two
+  shapes.
 
 ## Commits
 

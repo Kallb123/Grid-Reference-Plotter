@@ -105,9 +105,11 @@ src/
   App.vue
   styles.css              the brand's tokens: palette, ramps, type, radius, rule weight
   domain/                 ← pure TypeScript: no Vue, no DOM, no I/O
-    types.ts              VerticalRecord, ObliqueRecord, Footprint, GridRef, Film…
+    types.ts              VerticalRecord, ObliqueRecord, Footprint, GridRef, Film, AreaOfInterest…
     osgb.ts               grid ref parse/format; easting/northing ↔ WGS84
     footprint.ts          camera + height → ground size → rotated corner polygon
+    geometry.ts           plane polygon maths in grid metres: area, clipping, distances
+    coverage.ts           area of interest × footprint → how much, how close to the edge
     bounds.ts             the box round what is plotted, for fit-to-bounds
     units.ts              inches/mm/feet/metres normalisation
   io/
@@ -119,13 +121,15 @@ src/
     exportGeoJson.ts      footprints and points → GeoJSON FeatureCollection
   composables/
     usePhotoSet.ts        loaded records, derived footprints, selection and hover
-    useLeafletMap.ts      map lifecycle, layer sync, fit-to-bounds
+    useAreaOfInterest.ts  the marked site, the state of drawing one, and every frame's verdict
+    useLeafletMap.ts      map lifecycle, layer sync, fit-to-bounds, drawing the site
     photoSummary.ts       one frame → labelled lines of text, for popup or panel
     photoTable.ts         frames → table rows, and the column ordering
   components/
     BrandLockup.vue       the mark and the name, inlined so the ink follows the colour scheme
-    MapView.vue           map + footprint layer
+    MapView.vue           map + footprint layer, legend, and the prompt shown while drawing
     FileDrop.vue          drag/drop + file picker
+    AreaOfInterestPanel.vue  mark, describe and clear the site; the coverage tally
     PhotoTable.vue        tabular list, linked selection with the map
     PhotoDetail.vue       one frame: derived numbers and their inputs
     IssueList.vue         rows that failed to parse and why
@@ -165,12 +169,27 @@ Workbook ─▶ io/readWorkbook ─▶ sheet classified by header row
                                                                           ├─▶ MapView (polygons + markers)
                                                                           ├─▶ PhotoTable (rows)
                                                                           └─▶ exportGeoJson
+
+Map click ─▶ AreaOfInterest (WGS84) ─▶ domain/osgb ─▶ grid metres ─▶ domain/coverage
+                                                                          │
+                                                              FrameCoverage per frame
+                                                                          │
+                                                    ├─▶ MapView   (frames that miss it faded)
+                                                    ├─▶ PhotoTable (two more columns, sorted by them)
+                                                    └─▶ PhotoDetail / popups (how much, how close)
 ```
 
 Selection and hover are shared state in `usePhotoSet`, so hovering a table row highlights its
 polygon and clicking a polygon scrolls the table — this linkage is the main thing that makes the
 tool usable with 50+ candidate frames. Neither view owns either piece of state: both show the
-same frames, and each has to react to what the user does in the other.
+same frames, and each has to react to what the user does in the other. The area of interest is
+shared the same way, in `useAreaOfInterest`, and for the same reason: it is drawn on the map and
+it reorders the table.
+
+The site is the only input in the app that does not come out of a spreadsheet, and it arrives in
+WGS84 because that is what a map click is. It is converted to National Grid metres before
+anything is measured, so the comparison happens on the plane both the site and the frames really
+live on and the datum transform cannot introduce a discrepancy between the two.
 
 Rows that cannot be parsed **never** silently vanish. Every one lands in `ParseIssue[]` with
 its line number and a plain-English reason, and the UI shows the count.
@@ -235,6 +254,23 @@ interface Footprint {
   uncertaintyM: number                        // half the grid square: 50 m for a six-figure ref
   notes: string[]                             // e.g. "scale is nominal", "heading assumed grid north"
 }
+
+/** What the user marked. A pin is a point: they said where their site is, not how big it is. */
+type AreaOfInterest =
+  | { kind: 'point'; position: LngLat }
+  | { kind: 'polygon'; ring: readonly LngLat[] }   // vertices in order, not closed
+
+/** What one frame does about that site. */
+interface FrameCoverage {
+  id: string
+  verdict: 'full' | 'partial' | 'none'
+  coveredFraction: number   // 0–1 of the site's area; a pin is 0 or 1
+  coveredAreaM2: number     // zero for a pin, which has no area
+  edgeClearanceM: number    // + inside with room to spare, 0 straddling, − by the size of the miss
+  offCentreM: number        // site centre to frame centre
+  marginal: boolean         // the clearance is inside the centre point's own ±50 m
+  notes: string[]
+}
 ```
 
 ## 7. Input format
@@ -287,6 +323,14 @@ do when wrong. A change that touches any of them needs a test.
    aligned and say so. If a source ever does: true bearings need grid convergence applied,
    grid bearings do not, and the code records which it assumed.
 8. Corner geometry computed in grid metres, converted per corner.
+9. **Coverage inherits the extent's uncertainty.** A frame's footprint is an estimate, so any
+   figure measured against it is a comparison with an estimate. Where the site sits closer to a
+   frame's edge than the ±50 m the centre point is known to, "covers" and "misses" are the same
+   answer as far as the data can tell, and the UI says so rather than reporting a verdict it
+   cannot support.
+10. **No coverage claimed for an oblique.** With no extent there is nothing to intersect. The
+    distance from the site to the archive's map reference is real and is shown as a distance;
+    it is never presented as, or sortable alongside, coverage.
 
 ## 9. Roadmap
 
@@ -317,15 +361,24 @@ do when wrong. A change that touches any of them needs a test.
    view selects it in both, and a frame chosen on the map scrolls its row into view — and pans the
    map to itself only if it was off screen, since re-centring on every click would fight a user
    who has panned deliberately.
-6. **Area of interest** — drop a pin or draw a polygon, sort frames by coverage of it. This is
-   the feature that actually answers "which do I buy?". The archive's own guide warns that
-   *"your area will not necessarily be in the centre of each photograph and may be on the edge
-   of it"* — quantifying that is the point of the tool.
+6. ~~**Area of interest**~~ — *done.* Drop a pin or draw an outline on the map, and every frame is
+   measured against it: how much of the site falls inside the frame, how far the site sits from
+   the frame's nearest edge, and how far it is from the middle of the picture. The table gains two
+   columns and orders itself by coverage the moment a site is marked; the map fades the frames
+   that do not reach it, so a listing that was thirty overlapping rectangles becomes the handful
+   that matter; and the misses can be dropped from the table outright. The archive's own guide
+   warns that *"your area will not necessarily be in the centre of each photograph and may be on
+   the edge of it"* — the edge margin is that warning made into a number, and where the margin is
+   smaller than the ±50 m the centre point is known to, the frame says so rather than claiming a
+   verdict the data cannot support. The geometry is plane arithmetic in National Grid metres
+   (`domain/geometry.ts`, `domain/coverage.ts`); drawing is hand-rolled on Leaflet rather than
+   taken from a plugin, because two shapes do not justify one.
 7. **Export** — GeoJSON/KML of the chosen frames, and a shortlist back out as a spreadsheet
    carrying the provenance columns needed to place an order.
 
-Milestones 1–4 were the walking skeleton, and 5 makes it a comparison tool. The next one is the
-one that answers the question the app is for: **which of these frames covers my site?**
+Milestones 1–4 were the walking skeleton, 5 made it a comparison tool, and 6 answers the question
+the app exists for: **which of these frames covers my site?** What is left is getting the answer
+back out — a shortlist, with the columns a supplier needs to take an order.
 
 ## Open questions
 
@@ -340,3 +393,10 @@ one that answers the question the app is for: **which of these frames covers my 
   open data).
 - **OS Maps basemap.** Requires an OS Data Hub key. Nice for users working in grid
   references, but adds key management — deferred until someone asks.
+- **Typing a site in rather than clicking one.** A customer who already has a grid reference for
+  their site has to find it on the map to mark it. `parseGridRef` would take the text directly;
+  the question is whether it earns a second input on the panel or belongs with the export work.
+- **Whether a site should survive a reload.** It is the one thing in the app the user made
+  themselves, and it is currently lost on refresh. `localStorage` would keep it, at the cost of
+  the app storing something about the user's enquiry — which is exactly what the no-backend
+  promise is about, even locally.

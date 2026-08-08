@@ -123,6 +123,31 @@ export function gridToWgs84(point: GridPoint): LngLat {
 }
 
 /**
+ * WGS84 → National Grid easting/northing: the inverse of `gridToWgs84`.
+ *
+ * This is the way in for anything the *user* puts on the map rather than the catalogue — an area
+ * of interest is dropped in WGS84, and every comparison against a frame has to happen in grid
+ * metres, where the National Grid is the plane it is (ARCHITECTURE.md §2.3).
+ *
+ * **Throws `RangeError` for a position off the National Grid.** The projection is defined for
+ * Great Britain and nowhere else, and there is no meaningful easting for a click in France.
+ * Callers taking positions from a map have to expect this — nothing stops a user panning.
+ */
+export function wgs84ToGrid([lng, lat]: LngLat): GridPoint {
+  try {
+    const gridRef = new LatLon(lat, lng).toOsGrid()
+    return { easting: gridRef.easting, northing: gridRef.northing }
+  } catch {
+    // geodesy's own message quotes the out-of-range easting, which is not a useful thing to
+    // show someone who clicked on a map.
+    throw new RangeError(
+      `${Math.abs(lat).toFixed(4)}° ${lat < 0 ? 'S' : 'N'}, ` +
+        `${Math.abs(lng).toFixed(4)}° ${lng < 0 ? 'W' : 'E'} is outside the National Grid`,
+    )
+  }
+}
+
+/**
  * National Grid easting/northing → OSGB36 latitude/longitude.
  *
  * This is the *historic* datum the grid is defined on. It exists to be compared against

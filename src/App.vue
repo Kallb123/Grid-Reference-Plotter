@@ -1,23 +1,29 @@
 <script setup lang="ts">
 /**
- * ARCHITECTURE.md §9.5: drop a supplier workbook, see the frames drawn, compare them in the
- * table, and be told about anything that did not make it.
+ * ARCHITECTURE.md §9.6: drop a supplier workbook, see the frames drawn, mark the site you want
+ * photographs of, and compare the frames by how well they cover it.
  *
- * Selection and hover live in `usePhotoSet` rather than in either view, because both views show
- * the same frames and each has to react to the other: a row lights up its polygon, and a polygon
- * clicked on the map scrolls its row into view.
+ * Two composables hold everything. `usePhotoSet` is the supplier's side — the file, the frames it
+ * yielded, and which one is selected or hovered; `useAreaOfInterest` is the user's — the site, and
+ * what every frame does about it. Both are shared rather than owned by a view, because the map and
+ * the table show the same frames and each has to react to what the user does in the other: a row
+ * lights up its polygon, a polygon clicked on the map scrolls its row into view, and a site drawn
+ * on the map reorders the table.
  */
 
 import { computed } from 'vue'
+import AreaOfInterestPanel from './components/AreaOfInterestPanel.vue'
 import BrandLockup from './components/BrandLockup.vue'
 import FileDrop from './components/FileDrop.vue'
 import IssueList from './components/IssueList.vue'
 import MapView from './components/MapView.vue'
 import PhotoDetail from './components/PhotoDetail.vue'
 import PhotoTable from './components/PhotoTable.vue'
+import { useAreaOfInterest } from './composables/useAreaOfInterest'
 import { usePhotoSet } from './composables/usePhotoSet'
 
 const photos = usePhotoSet()
+const site = useAreaOfInterest(photos.footprints, photos.points)
 
 const counts = computed(() => {
   const parts: string[] = []
@@ -58,7 +64,20 @@ const counts = computed(() => {
         :start-open="photos.status.value === 'loaded' && photos.isEmpty.value"
       />
 
-      <PhotoDetail :selection="photos.selected.value" />
+      <AreaOfInterestPanel
+        :area="site.area.value"
+        :area-error="site.areaError.value"
+        :coverage="site.coverage.value"
+        :draw-mode="site.drawMode.value"
+        :hide-misses="site.hideMisses.value"
+        :has-frames="!photos.isEmpty.value"
+        @begin="site.begin"
+        @cancel-draw="site.cancelDrawing"
+        @clear="site.clear"
+        @update:hide-misses="site.hideMisses.value = $event"
+      />
+
+      <PhotoDetail :selection="photos.selected.value" :coverage="site.coverage.value" />
 
       <p v-if="photos.selected.value === null && !photos.isEmpty.value" class="panel__hint">
         Choose a frame, on the map or in the table, to see the numbers behind it.
@@ -76,8 +95,15 @@ const counts = computed(() => {
         :bounds="photos.bounds.value"
         :selected-id="photos.selectedId.value"
         :hovered-id="photos.hoveredId.value"
+        :area="site.area.value"
+        :coverage="site.coverage.value"
+        :draw-mode="site.drawMode.value"
+        :placed-vertices="site.placedVertices.value"
         @select="photos.select"
         @hover="photos.hover"
+        @area="site.setArea"
+        @cancel-draw="site.cancelDrawing"
+        @vertex-placed="site.placedVertices.value = $event"
       />
 
       <PhotoTable
@@ -85,6 +111,8 @@ const counts = computed(() => {
         :points="photos.points.value"
         :selected-id="photos.selectedId.value"
         :hovered-id="photos.hoveredId.value"
+        :coverage="site.coverage.value"
+        :keep="site.keep"
         @select="photos.select"
         @hover="photos.hover"
       />

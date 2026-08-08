@@ -136,6 +136,21 @@ export interface PlottedPoint {
 }
 
 /**
+ * The site the user is buying photographs of: a dropped pin, or an outline drawn round it.
+ *
+ * Held in WGS84 because that is what the map hands over and what an export would carry. Every
+ * measurement against it converts to National Grid metres first — see `domain/coverage.ts`.
+ *
+ * A pin is deliberately a point and not a circle. The user has told us where their site is, not
+ * how big it is, and a radius nobody supplied is exactly the kind of invented number this
+ * codebase refuses elsewhere.
+ */
+export type AreaOfInterest =
+  | { kind: 'point'; position: LngLat }
+  /** The outline's vertices in order, not closed — the last joins back to the first. */
+  | { kind: 'polygon'; ring: readonly LngLat[] }
+
+/**
  * A row that could not be parsed. One bad line must never discard the other forty-nine, so
  * failures are collected here rather than thrown away or allowed to abort the file.
  */

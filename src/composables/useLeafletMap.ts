@@ -1,5 +1,6 @@
 /**
- * Leaflet, driven from a Vue component: map lifecycle, layer sync, fit-to-bounds.
+ * Leaflet, driven from a Vue component: map lifecycle, layer sync, fit-to-bounds, and the
+ * drawing of an area of interest.
  *
  * Leaflet is used directly rather than through a Vue wrapper. We draw our own polygons, so a
  * wrapper would add a dependency that lags Vue releases in exchange for nothing (ARCHITECTURE.md
@@ -7,17 +8,25 @@
  * step by hand — which is all this file does.
  *
  * No arithmetic happens here. Corners arrive already converted to WGS84 by `domain/footprint`,
- * and the box to fit arrives from `domain/bounds`; this file only reverses the axis order,
- * because GeoJSON says `[lng, lat]` and Leaflet says `[lat, lng]`.
+ * the box to fit arrives from `domain/bounds`, and every coverage figure arrives from
+ * `domain/coverage`; this file only reverses the axis order, because GeoJSON says `[lng, lat]`
+ * and Leaflet says `[lat, lng]`.
+ *
+ * Drawing is hand-rolled rather than taken from a Leaflet draw plugin, for the same reason the
+ * map itself is: two shapes — a pin and an outline — do not justify a plugin, and the plugin's
+ * own toolbar would be a second UI vocabulary sitting on top of this one.
  */
 
 import * as L from 'leaflet'
 import { onBeforeUnmount, onMounted, watch } from 'vue'
 import type { Ref } from 'vue'
 import type { LngLatBounds } from '../domain/bounds'
-import type { Footprint, LngLat, PlottedPoint } from '../domain/types'
+import type { SiteCoverage } from '../domain/coverage'
+import type { AreaOfInterest, Footprint, LngLat, PlottedPoint } from '../domain/types'
 import { footprintSummary, pointSummary } from './photoSummary'
 import type { PhotoSummary } from './photoSummary'
+import { MINIMUM_OUTLINE_VERTICES } from './useAreaOfInterest'
+import type { DrawMode } from './useAreaOfInterest'
 
 /** Great Britain, for the opening view when nothing has been loaded yet. */
 const GREAT_BRITAIN: LngLatBounds = { west: -8.2, south: 49.8, east: 1.9, north: 60.9 }
@@ -29,6 +38,9 @@ const GREAT_BRITAIN: LngLatBounds = { west: -8.2, south: 49.8, east: 1.9, north:
  * the tile server's maximum zoom and imply a precision the reference does not have.
  */
 const MAX_FIT_ZOOM = 16
+
+/** How near a click has to land, in screen pixels, to count as closing the outline. */
+const CLOSE_OUTLINE_PX = 14
 
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ATTRIBUTION =
@@ -50,6 +62,15 @@ export const VERTICAL_COLOUR = '#201e1d'
 export const OBLIQUE_COLOUR = '#7c1405'
 /** The accent itself, spent on the one frame being inspected. */
 export const SELECTED_COLOUR = '#ec3013'
+/**
+ * The area of interest — the same accent as the selected frame, and deliberately so.
+ *
+ * There is one accent in this palette and the two things that earn it are the frame you are
+ * looking at and the site you are looking for. They are told apart by the dashes: the site is
+ * drawn as a broken line with a wash inside it, because it is the user's own mark on the map and
+ * not something read out of the supplier's file.
+ */
+export const AREA_COLOUR = SELECTED_COLOUR
 
 export interface LeafletMapSources {
   footprints: Ref<readonly Footprint[]>
@@ -61,6 +82,12 @@ export interface LeafletMapSources {
    * than kept inside the map, so pointing at a row lights up its polygon and vice versa.
    */
   hoveredId: Ref<string | null>
+  /** The site to draw, or `null` when none has been marked. */
+  area: Ref<AreaOfInterest | null>
+  /** What every frame does about that site, so the ones that miss can get out of the way. */
+  coverage: Ref<SiteCoverage | null>
+  /** What the next click means: select a frame, drop a pin, or place a corner. */
+  drawMode: Ref<DrawMode>
 }
 
 export interface LeafletMapOptions {
@@ -68,11 +95,23 @@ export interface LeafletMapOptions {
   onSelect?: (id: string | null) => void
   /** Called when the pointer enters or leaves a frame. */
   onHover?: (id: string | null) => void
+  /** Called with a finished pin or outline. */
+  onAreaDrawn?: (area: AreaOfInterest) => void
+  /** Called when drawing is abandoned, from the Escape key or the prompt's own button. */
+  onDrawCancelled?: () => void
+  /** Called as corners go down, so the prompt can count them. */
+  onVertexPlaced?: (count: number) => void
 }
 
 export interface LeafletMapHandle {
   /** Frame everything that is plotted. A no-op when nothing is. */
   fitToData: () => void
+  /** Frame the area of interest. A no-op when none has been marked. */
+  fitToArea: () => void
+  /** Close the outline being drawn, if it has enough corners to be one. */
+  finishDrawing: () => void
+  /** Abandon whatever was being drawn. */
+  cancelDrawing: () => void
 }
 
 /**
@@ -87,6 +126,16 @@ export interface LeafletMapHandle {
 const SELECTED_FILL = 0.18
 const HOVERED_FILL = 0.1
 
+/**
+ * Stroke opacity for a frame that has been measured against the site and does not reach it.
+ *
+ * Faded rather than removed. Half the value of seeing that twelve of your thirty frames miss is
+ * seeing *where* they went instead — a run that passed a kilometre north of the site is the shape
+ * of the sortie, and hiding it would leave the user wondering whether the file had been read.
+ * The table is where the misses can actually be dropped, because there a row is a line item.
+ */
+const MISSING_OPACITY = 0.22
+
 /** One record's drawn layers, with what to return them to when they stop being singled out. */
 interface DrawnFrame {
   colour: string
@@ -99,6 +148,12 @@ interface DrawnLayer {
   restingFillOpacity: number
 }
 
+/** An outline part-way through being drawn. */
+interface Sketch {
+  mode: Exclude<DrawMode, 'none'>
+  vertices: L.LatLng[]
+}
+
 export function useLeafletMap(
   container: Ref<HTMLElement | null>,
   sources: LeafletMapSources,
@@ -107,13 +162,40 @@ export function useLeafletMap(
   let map: L.Map | null = null
   const frames = L.layerGroup()
   const highlight = L.layerGroup()
+  /** The committed area of interest. */
+  const site = L.layerGroup()
+  /** The outline being drawn, redrawn corner by corner. */
+  const sketch = L.layerGroup()
   /** Every drawn frame by record id, so selection restyles rather than redraws. */
   const drawnById = new Map<string, DrawnFrame>()
+
+  let drawing: Sketch | null = null
 
   function fitToData(): void {
     const box = sources.bounds.value
     if (map === null || box === null) return
     map.fitBounds(toLeafletBounds(box), { padding: [32, 32], maxZoom: MAX_FIT_ZOOM })
+  }
+
+  /**
+   * Frame the site.
+   *
+   * A pin has no extent to fit, so it is centred at whatever zoom is already in use, or closer if
+   * the map is showing the whole country. Zooming a dropped pin to the tile server's limit would
+   * be the same overstatement `MAX_FIT_ZOOM` exists to avoid.
+   */
+  function fitToArea(): void {
+    const area = sources.area.value
+    if (map === null || area === null) return
+
+    if (area.kind === 'point') {
+      map.setView(toLatLng(area.position), Math.max(map.getZoom(), 14))
+      return
+    }
+    map.fitBounds(L.latLngBounds(area.ring.map(toLatLng)), {
+      padding: [48, 48],
+      maxZoom: MAX_FIT_ZOOM,
+    })
   }
 
   function draw(): void {
@@ -124,7 +206,7 @@ export function useLeafletMap(
       const id = footprint.record.id
       const polygon = L.polygon(footprint.corners.map(toLatLng), framePathStyle(VERTICAL_COLOUR))
       register(id, VERTICAL_COLOUR, [{ layer: polygon, restingFillOpacity: 0 }], () =>
-        summaryElement(footprintSummary(footprint)),
+        summaryElement(footprintSummary(footprint, sources.coverage.value?.frames.get(id) ?? null)),
       )
     }
 
@@ -148,14 +230,22 @@ export function useLeafletMap(
           { layer: square, restingFillOpacity: 0 },
           { layer: marker, restingFillOpacity: 0.9 },
         ],
-        () => summaryElement(pointSummary(point)),
+        () =>
+          summaryElement(pointSummary(point, sources.coverage.value?.obliques.get(id) ?? null)),
       )
     }
 
     applyStyles()
   }
 
-  /** Add one record's layers to the map and wire up its popup, selection and hover. */
+  /**
+   * Add one record's layers to the map and wire up its popup, selection and hover.
+   *
+   * The popup is opened by hand rather than bound with `bindPopup`, because a bound popup opens
+   * on every click including the ones that are placing a corner of an outline. A popup springing
+   * open over the shape you are drawing, on each click, would make drawing over a dense listing
+   * unusable.
+   */
   function register(
     id: string,
     colour: string,
@@ -163,8 +253,16 @@ export function useLeafletMap(
     popup: () => HTMLElement,
   ): void {
     for (const { layer } of layers) {
-      layer.bindPopup(popup)
-      layer.on('click', () => options.onSelect?.(id))
+      layer.on('click', (event: L.LeafletMouseEvent) => {
+        // Leaflet does not propagate a click on a path to the map, so a frame under the pointer
+        // would otherwise swallow the corner the user was trying to place.
+        if (drawing !== null) {
+          placeVertex(event.latlng)
+          return
+        }
+        options.onSelect?.(id)
+        map?.openPopup(popup(), event.latlng)
+      })
       layer.on('mouseover', () => options.onHover?.(id))
       layer.on('mouseout', () => {
         // Only if this frame is still the hovered one: leaving a polygon that overlaps another
@@ -178,7 +276,8 @@ export function useLeafletMap(
   }
 
   /**
-   * Restyle every frame for the current selection and hover, and mark the selected frame's centre.
+   * Restyle every frame for the current selection, hover and coverage, and mark the selected
+   * frame's centre.
    *
    * The centre marker is the point the grid reference actually names, with its square drawn
    * round it. Showing it for every frame at once would bury the map in dots; showing it for the
@@ -188,17 +287,23 @@ export function useLeafletMap(
     highlight.clearLayers()
     const selectedId = sources.selectedId.value
     const hoveredId = sources.hoveredId.value
+    const coverage = sources.coverage.value
 
     for (const [id, frame] of drawnById) {
       const isSelected = id === selectedId
       const isHovered = id === hoveredId
+      const verdict = coverage?.frames.get(id)?.verdict
+      // Only a frame actually measured and found wanting fades. An oblique has no verdict
+      // because none is derivable, and fading it would state one.
+      const misses = verdict === 'none' && !isSelected && !isHovered
 
       for (const { layer, restingFillOpacity } of frame.layers) {
         layer.setStyle({
           color: isSelected ? SELECTED_COLOUR : frame.colour,
-          weight: isSelected ? 3 : isHovered ? 2.5 : 1.2,
+          weight: isSelected ? 3 : isHovered ? 2.5 : verdict === 'full' ? 2 : 1.2,
+          opacity: misses ? MISSING_OPACITY : 0.9,
           fillOpacity: Math.max(
-            restingFillOpacity,
+            misses ? 0 : restingFillOpacity,
             isSelected ? SELECTED_FILL : isHovered ? HOVERED_FILL : 0,
           ),
         })
@@ -228,6 +333,214 @@ export function useLeafletMap(
   }
 
   /**
+   * Draw the committed area of interest.
+   *
+   * Non-interactive throughout: the site sits on top of the frames it is being compared with, and
+   * a shape that answered clicks would make the frames underneath it — the ones that cover the
+   * site, which is to say the interesting ones — unselectable.
+   */
+  function renderArea(): void {
+    site.clearLayers()
+    const area = sources.area.value
+    if (area === null) return
+
+    if (area.kind === 'point') {
+      L.circleMarker(toLatLng(area.position), {
+        radius: 6,
+        color: AREA_COLOUR,
+        weight: 2,
+        fillColor: AREA_COLOUR,
+        fillOpacity: 0.9,
+        interactive: false,
+      }).addTo(site)
+      return
+    }
+
+    L.polygon(area.ring.map(toLatLng), {
+      color: AREA_COLOUR,
+      weight: 2,
+      dashArray: '6 4',
+      fillColor: AREA_COLOUR,
+      fillOpacity: 0.12,
+      interactive: false,
+    }).addTo(site)
+  }
+
+  /** Draw the corners placed so far, with the first one marked as the way to close the ring. */
+  function renderSketch(): void {
+    sketch.clearLayers()
+    if (drawing === null || drawing.vertices.length === 0) return
+
+    const [first, ...rest] = drawing.vertices
+    if (first === undefined) return
+
+    if (drawing.vertices.length > 1) {
+      L.polyline(drawing.vertices, {
+        color: AREA_COLOUR,
+        weight: 2,
+        dashArray: '6 4',
+        interactive: false,
+      }).addTo(sketch)
+    }
+
+    // The first corner is drawn hollow and larger: it is a target, not just a corner, because
+    // clicking it is one of the three ways to finish.
+    L.circleMarker(first, {
+      radius: drawing.vertices.length >= MINIMUM_OUTLINE_VERTICES ? 7 : 4,
+      color: AREA_COLOUR,
+      weight: 2,
+      fillOpacity: 0,
+      interactive: false,
+    }).addTo(sketch)
+
+    for (const vertex of rest) {
+      L.circleMarker(vertex, {
+        radius: 4,
+        color: AREA_COLOUR,
+        weight: 2,
+        fillColor: AREA_COLOUR,
+        fillOpacity: 0.9,
+        interactive: false,
+      }).addTo(sketch)
+    }
+  }
+
+  /** A click while drawing: drop the pin, close the ring, or add another corner. */
+  function placeVertex(latlng: L.LatLng): void {
+    if (drawing === null) return
+
+    if (drawing.mode === 'point') {
+      options.onAreaDrawn?.({ kind: 'point', position: toLngLat(latlng) })
+      return
+    }
+
+    if (drawing.vertices.length >= MINIMUM_OUTLINE_VERTICES && isOnFirstVertex(latlng)) {
+      finishDrawing()
+      return
+    }
+
+    drawing.vertices.push(latlng)
+    options.onVertexPlaced?.(drawing.vertices.length)
+    renderSketch()
+  }
+
+  /** Did the click land on the outline's first corner? Measured in pixels, not in metres. */
+  function isOnFirstVertex(latlng: L.LatLng): boolean {
+    const first = drawing?.vertices[0]
+    if (map === null || first === undefined) return false
+    return map.latLngToContainerPoint(first).distanceTo(map.latLngToContainerPoint(latlng)) <=
+      CLOSE_OUTLINE_PX
+  }
+
+  function finishDrawing(): void {
+    if (drawing === null) return
+    if (drawing.vertices.length < MINIMUM_OUTLINE_VERTICES) {
+      cancelDrawing()
+      return
+    }
+    options.onAreaDrawn?.({ kind: 'polygon', ring: drawing.vertices.map(toLngLat) })
+  }
+
+  function cancelDrawing(): void {
+    if (drawing === null) return
+    options.onDrawCancelled?.()
+  }
+
+  /** Leave drawing mode, whatever ended it. The mode itself is owned outside this file. */
+  function stopSketching(): void {
+    drawing = null
+    sketch.clearLayers()
+    container.value?.classList.remove('map__canvas--drawing')
+  }
+
+  function onKeyDown(event: KeyboardEvent): void {
+    if (drawing === null) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelDrawing()
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      finishDrawing()
+    }
+  }
+
+  onMounted(() => {
+    const element = container.value
+    if (element === null) return
+
+    map = L.map(element, { preferCanvas: true }).fitBounds(toLeafletBounds(GREAT_BRITAIN))
+    L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(map)
+    L.control.scale({ metric: true, imperial: true }).addTo(map)
+    frames.addTo(map)
+    highlight.addTo(map)
+    site.addTo(map)
+    sketch.addTo(map)
+
+    // Clicking the basemap clears the selection — unless a shape is being drawn, when it is
+    // placing a corner instead. Clicks on a frame are handled on the frame, and Leaflet does not
+    // propagate those to the map.
+    map.on('click', (event: L.LeafletMouseEvent) => {
+      if (drawing !== null) {
+        placeVertex(event.latlng)
+        return
+      }
+      options.onSelect?.(null)
+    })
+
+    document.addEventListener('keydown', onKeyDown)
+
+    draw()
+    renderArea()
+    fitToData()
+  })
+
+  onBeforeUnmount(() => {
+    document.removeEventListener('keydown', onKeyDown)
+    map?.remove()
+    map = null
+    drawing = null
+    drawnById.clear()
+  })
+
+  // A new file replaces the plot and reframes the view. Reframing on every change would fight
+  // the user as they pan, but a load is exactly the moment they want to be shown the results.
+  watch([sources.footprints, sources.points], () => {
+    draw()
+    fitToData()
+  })
+
+  watch(sources.selectedId, () => {
+    applyStyles()
+    revealSelection()
+  })
+
+  watch(sources.hoveredId, applyStyles)
+
+  // A site changes what the frames mean, not what they are: restyle rather than redraw. Popups
+  // read their coverage at the moment they are opened, so an open one is now out of date — it is
+  // closed rather than patched, because the frame behind it has just changed what it is worth.
+  watch(sources.area, () => {
+    map?.closePopup()
+    renderArea()
+    applyStyles()
+  })
+
+  watch(sources.drawMode, (mode) => {
+    if (mode === 'none') {
+      stopSketching()
+      return
+    }
+    drawing = { mode, vertices: [] }
+    sketch.clearLayers()
+    container.value?.classList.add('map__canvas--drawing')
+    // Drawing starts from a clean map: a popup left open over the site would be in the way of
+    // the first corner.
+    map?.closePopup()
+  })
+
+  /**
    * Bring the selected frame into view, but only if it is not already there.
    *
    * Selecting a row in the table is worthless if its polygon is off the edge of the map, and
@@ -254,45 +567,7 @@ export function useLeafletMap(
     if (!map.getBounds().contains(position)) map.panTo(position)
   }
 
-  onMounted(() => {
-    const element = container.value
-    if (element === null) return
-
-    map = L.map(element, { preferCanvas: true }).fitBounds(toLeafletBounds(GREAT_BRITAIN))
-    L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(map)
-    L.control.scale({ metric: true, imperial: true }).addTo(map)
-    frames.addTo(map)
-    highlight.addTo(map)
-
-    // Clicking the basemap clears the selection; clicking a frame is handled on the frame, and
-    // Leaflet does not propagate that to the map.
-    map.on('click', () => options.onSelect?.(null))
-
-    draw()
-    fitToData()
-  })
-
-  onBeforeUnmount(() => {
-    map?.remove()
-    map = null
-    drawnById.clear()
-  })
-
-  // A new file replaces the plot and reframes the view. Reframing on every change would fight
-  // the user as they pan, but a load is exactly the moment they want to be shown the results.
-  watch([sources.footprints, sources.points], () => {
-    draw()
-    fitToData()
-  })
-
-  watch(sources.selectedId, () => {
-    applyStyles()
-    revealSelection()
-  })
-
-  watch(sources.hoveredId, applyStyles)
-
-  return { fitToData }
+  return { fitToData, fitToArea, finishDrawing, cancelDrawing }
 }
 
 /**
@@ -308,6 +583,11 @@ function framePathStyle(colour: string): L.PathOptions {
 /** GeoJSON order `[lng, lat]` → Leaflet order `[lat, lng]`. */
 function toLatLng([lng, lat]: LngLat): L.LatLngTuple {
   return [lat, lng]
+}
+
+/** Leaflet's `LatLng` back to the `[lng, lat]` the domain and GeoJSON both use. */
+function toLngLat(latlng: L.LatLng): LngLat {
+  return [latlng.lng, latlng.lat]
 }
 
 function toLeafletBounds(box: LngLatBounds): L.LatLngBoundsExpression {

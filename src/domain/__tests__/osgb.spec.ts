@@ -7,6 +7,7 @@ import {
   InvalidGridRefError,
   parseGridRef,
   trueBearingToGridBearing,
+  wgs84ToGrid,
 } from '../osgb'
 import { distanceM } from './distance'
 
@@ -169,6 +170,46 @@ describe('datum conversion', () => {
       expect(shift).toBeGreaterThan(70)
       expect(shift).toBeLessThan(140)
     }
+  })
+
+  it('comes back from WGS84 to the easting and northing it started at', () => {
+    // This is the way in for anything the *user* puts on the map: an area of interest is dropped
+    // in WGS84 and has to be measured against frames in grid metres.
+    const point = { easting: SAMPLE.easting, northing: SAMPLE.northing }
+    const back = wgs84ToGrid(gridToWgs84(point))
+
+    expect(back.easting).toBeCloseTo(point.easting, 2)
+    expect(back.northing).toBeCloseTo(point.northing, 2)
+  })
+
+  it('round-trips across the whole grid to within a centimetre', () => {
+    for (const point of [
+      { easting: 90000, northing: 12000 }, // Isles of Scilly
+      { easting: 442150, northing: 384950 }, // Derbyshire
+      { easting: 250000, northing: 650000 }, // Ayrshire
+      { easting: 450000, northing: 1200000 }, // Shetland
+    ]) {
+      const back = wgs84ToGrid(gridToWgs84(point))
+      expect(Math.hypot(back.easting - point.easting, back.northing - point.northing)).toBeLessThan(
+        0.01,
+      )
+    }
+  })
+
+  it('refuses a position off the National Grid, in words a user could read', () => {
+    // Paris. The projection is defined for Great Britain and nowhere else, and a caller taking
+    // positions off a map has to expect this — nothing stops a user panning.
+    expect(() => wgs84ToGrid([2.35, 48.85])).toThrow(RangeError)
+    expect(() => wgs84ToGrid([2.35, 48.85])).toThrow(/48\.8500° N, 2\.3500° E/)
+    expect(() => wgs84ToGrid([2.35, 48.85])).toThrow(/outside the National Grid/)
+  })
+
+  it('reads a WGS84 position as the grid position, not as an OSGB36 one', () => {
+    // Handing WGS84 degrees to the projection without the datum transform — the mirror image of
+    // the retired implementation's bug — lands 70–120 m from here.
+    const grid = wgs84ToGrid(SAMPLE.wgs84)
+    expect(grid.easting).toBeCloseTo(SAMPLE.easting, 0)
+    expect(grid.northing).toBeCloseTo(SAMPLE.northing, 0)
   })
 })
 

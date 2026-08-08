@@ -18,8 +18,16 @@ OSGB36 → WGS84 datum transform and the footprint geometry, all under test; alo
 table of the same frames, sortable by date, scale or ground extent, linked to the map both ways.
 Rows that could not be read are listed with their line numbers rather than quietly dropped.
 
-Still to come: marking an area of interest and ranking frames by how well they cover it, and
-exporting a shortlist. See §9 of the architecture for the order.
+Then mark your site — drop a pin or draw an outline round it — and the listing sorts itself by
+how well each frame covers it. You get how much of the site is in each picture, how far it sits
+from the frame's nearest edge, and how far off centre it is; frames that miss are faded on the
+map and can be dropped from the table. The archive's own guide warns that *"your area will not
+necessarily be in the centre of each photograph and may be on the edge of it"* — the edge margin
+is that warning as a number. Where the margin is smaller than the ±50 m the supplier's centre
+point is good to, the app says so rather than claiming a frame covers your site when the data
+cannot tell.
+
+Still to come: exporting the shortlist. See §9 of the architecture for the order.
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — what is being built and how
 - [`INPUT-FORMAT.md`](INPUT-FORMAT.md) — the supplier result files, documented from a real

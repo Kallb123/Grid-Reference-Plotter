@@ -14,16 +14,26 @@
 
 import { computed } from 'vue'
 import { footprintSummary, pointSummary } from '../composables/photoSummary'
+import type { SiteCoverage } from '../domain/coverage'
 import type { Selection } from '../composables/usePhotoSet'
 
-const props = defineProps<{ selection: Selection | null }>()
+const props = defineProps<{
+  selection: Selection | null
+  /** What every frame does about the marked site, or `null` when none is marked. */
+  coverage: SiteCoverage | null
+}>()
 
 const summary = computed(() => {
   const selection = props.selection
   if (selection === null) return null
-  return selection.kind === 'vertical'
-    ? footprintSummary(selection.footprint)
-    : pointSummary(selection.point)
+
+  if (selection.kind === 'vertical') {
+    const id = selection.footprint.record.id
+    return footprintSummary(selection.footprint, props.coverage?.frames.get(id) ?? null)
+  }
+
+  const id = selection.point.record.id
+  return pointSummary(selection.point, props.coverage?.obliques.get(id) ?? null)
 })
 </script>
 
