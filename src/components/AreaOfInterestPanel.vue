@@ -22,6 +22,16 @@ const props = defineProps<{
   coverage: SiteCoverage | null
   drawMode: DrawMode
   hideMisses: boolean
+  /**
+   * Frames that miss the site *and are still on screen* — counted outside this component,
+   * because the wizard's own coverage question may already have taken some of them away.
+   *
+   * The two controls overlap and are deliberately not the same: this tick empties the table
+   * while leaving the map alone, which is where a miss is worth seeing — a run that went a
+   * kilometre north is the shape of the sortie. The wizard's answer is the broader one and
+   * takes them off both.
+   */
+  missCount: number
   /** Whether a listing has been loaded at all, which changes what marking a site is worth. */
   hasFrames: boolean
 }>()
@@ -37,7 +47,6 @@ const summary = computed(() => (props.area === null ? null : areaOfInterestSumma
 const tally = computed(() =>
   props.coverage === null ? null : describeTally(props.coverage.tally),
 )
-const missCount = computed(() => props.coverage?.tally.none ?? 0)
 </script>
 
 <template>
@@ -76,13 +85,13 @@ const missCount = computed(() => props.coverage?.tally.none ?? 0)
       Load a results workbook to see which frames cover it.
     </p>
 
-    <label v-if="missCount > 0" class="site__filter">
+    <label v-if="props.missCount > 0" class="site__filter">
       <input
         type="checkbox"
         :checked="props.hideMisses"
         @change="emit('update:hideMisses', ($event.target as HTMLInputElement).checked)"
       />
-      Leave the {{ missCount }} frame{{ missCount === 1 ? '' : 's' }} that miss it out of the table
+      Leave the {{ props.missCount }} frame{{ props.missCount === 1 ? '' : 's' }} that miss it out of the table
     </label>
 
     <div class="site__actions">

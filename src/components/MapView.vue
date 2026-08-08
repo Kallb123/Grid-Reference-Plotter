@@ -25,6 +25,8 @@ const props = defineProps<{
   bounds: LngLatBounds | null
   selectedId: string | null
   hoveredId: string | null
+  /** Frames the listing filter has put out of the way; drawn again as soon as it is relaxed. */
+  hiddenIds: ReadonlySet<string>
   area: AreaOfInterest | null
   coverage: SiteCoverage | null
   drawMode: DrawMode
@@ -50,6 +52,7 @@ const { fitToData, fitToArea, finishDrawing, cancelDrawing } = useLeafletMap(
     bounds: toRef(props, 'bounds'),
     selectedId: toRef(props, 'selectedId'),
     hoveredId: toRef(props, 'hoveredId'),
+    hiddenIds: toRef(props, 'hiddenIds'),
     area: toRef(props, 'area'),
     coverage: toRef(props, 'coverage'),
     drawMode: toRef(props, 'drawMode'),
@@ -135,6 +138,15 @@ const prompt = computed(() => {
           aria-hidden="true"
         />
         Your site; frames that miss it are faded
+      </p>
+      <!--
+        A count rather than a swatch: there is nothing on the map to point at. Said here as well
+        as in the panel because the map is where the frames are missing from, and a listing
+        narrowed three minutes ago is otherwise indistinguishable from one that read short.
+      -->
+      <p v-if="props.hiddenIds.size > 0" class="map__key map__key--filtered">
+        {{ props.hiddenIds.size }} frame{{ props.hiddenIds.size === 1 ? '' : 's' }} left out by
+        your answers
       </p>
       <div class="map__buttons">
         <button type="button" class="map__button" @click="fitToData">Fit to frames</button>
@@ -247,6 +259,11 @@ const prompt = computed(() => {
   gap: 0.5rem;
   align-items: baseline;
   margin: 0;
+}
+
+/* No swatch to line up with, so it takes the indent the others get from theirs. */
+.map__key--filtered {
+  padding-left: 1.35rem;
 }
 
 /* Colours come from the map's own constants, bound inline — see the note beside them. */

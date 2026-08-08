@@ -12,9 +12,11 @@
  */
 
 import { siteGeometry } from '../domain/coverage'
+import { detailThresholdText } from '../domain/detail'
 import { formatGridRef, gridToWgs84 } from '../domain/osgb'
 import { metresToFeet, squareMetresToSquareMiles } from '../domain/units'
 import type { CoverageVerdict, FrameCoverage, SiteProximity } from '../domain/coverage'
+import type { FilterCriterion, FrameFilter } from '../domain/filter'
 import type {
   AreaOfInterest,
   Footprint,
@@ -210,6 +212,65 @@ export function describeTally(tally: Record<CoverageVerdict, number>): string {
   if (tally.none > 0) parts.push(`${tally.none} miss it`)
 
   return `${parts.join(', ')}.`
+}
+
+/**
+ * What the listing filter is currently asking for, one phrase per criterion.
+ *
+ * Written out rather than left as a set of controls to re-read, because the filter is the reason
+ * frames are missing from the map and the table. Somebody who set it three minutes ago and has
+ * been panning ever since needs to be able to see, in a line, why they are looking at four
+ * frames out of fifty.
+ */
+export function describeFilter(filter: FrameFilter): string[] {
+  const parts: string[] = []
+
+  if (filter.minDetail > 0) parts.push(detailThresholdText(filter.minDetail))
+  const years = describeYearRange(filter.fromYear, filter.toYear)
+  if (years !== null) parts.push(years)
+  if (filter.coverage === 'partial') parts.push('reaching your site')
+  if (filter.coverage === 'full') parts.push('covering all of your site')
+  if (filter.printHeldOnly) parts.push('print held')
+
+  return parts
+}
+
+function describeYearRange(from: number | null, to: number | null): string | null {
+  if (from === null && to === null) return null
+  if (from !== null && to !== null) return from === to ? String(from) : `${from} to ${to}`
+  if (from !== null) return `${from} onwards`
+  return `up to ${String(to)}`
+}
+
+/**
+ * Why some frames are on screen without having been tested, in one sentence.
+ *
+ * A criterion a frame carries nothing to answer never rejects it (`domain/filter`), which is the
+ * right call — no evidence is not evidence — but it leaves a narrowed listing containing frames
+ * that did not pass. Saying so is the difference between a filter the user can trust and one
+ * that quietly overstates what it did.
+ */
+export function describeUnjudged(criteria: readonly FilterCriterion[], count: number): string | null {
+  if (criteria.length === 0 || count === 0) return null
+
+  const reasons = criteria.map((criterion) => UNJUDGED_REASONS[criterion])
+  return (
+    `${count} frame${count === 1 ? ' is' : 's are'} shown without being tested: ` +
+    `${joinPhrases(reasons)}.`
+  )
+}
+
+const UNJUDGED_REASONS: Record<FilterCriterion, string> = {
+  detail: 'an oblique carries no scale to judge detail by',
+  date: 'some rows give no date',
+  coverage: 'an oblique has no extent to compare with your site',
+  print: 'some rows carry a “held” code this app does not recognise',
+}
+
+/** `["a", "b", "c"]` → `"a, b and c"`. */
+function joinPhrases(phrases: readonly string[]): string {
+  if (phrases.length <= 1) return phrases.join('')
+  return `${phrases.slice(0, -1).join(', ')} and ${String(phrases[phrases.length - 1])}`
 }
 
 /**

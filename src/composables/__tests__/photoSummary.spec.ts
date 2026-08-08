@@ -3,9 +3,13 @@ import { coverageOf } from '../../domain/coverage'
 import { buildFootprint, buildObliquePoint } from '../../domain/footprint'
 import { gridToWgs84, parseGridRef } from '../../domain/osgb'
 import type { AreaOfInterest, ObliqueRecord, VerticalRecord } from '../../domain/types'
+import { ANY_FRAME } from '../../domain/filter'
+import type { FrameFilter } from '../../domain/filter'
 import {
   areaOfInterestSummary,
+  describeFilter,
   describeTally,
+  describeUnjudged,
   footprintSummary,
   formatArea,
   formatPosition,
@@ -233,6 +237,56 @@ describe('describeTally', () => {
     // An obliques-only listing. Nothing in it can be measured, and a tally of zeroes would read
     // as though every frame had been checked and failed.
     expect(describeTally({ full: 0, partial: 0, none: 0 })).toContain('No frame in this listing')
+  })
+})
+
+describe('describeFilter', () => {
+  const filter = (overrides: Partial<FrameFilter> = {}): FrameFilter => ({
+    ...ANY_FRAME,
+    ...overrides,
+  })
+
+  it('says nothing about a filter that asks nothing', () => {
+    expect(describeFilter(ANY_FRAME)).toEqual([])
+  })
+
+  it('states the detail threshold as the floor it is', () => {
+    expect(describeFilter(filter({ minDetail: 3 }))).toEqual(['1:10,000 or finer'])
+  })
+
+  it('writes a half-open year range as the half-open thing it is', () => {
+    expect(describeFilter(filter({ fromYear: 1960 }))).toEqual(['1960 onwards'])
+    expect(describeFilter(filter({ toYear: 1979 }))).toEqual(['up to 1979'])
+    expect(describeFilter(filter({ fromYear: 1960, toYear: 1969 }))).toEqual(['1960 to 1969'])
+    // One year asked for at both ends is one year, not a range from itself to itself.
+    expect(describeFilter(filter({ fromYear: 1967, toYear: 1967 }))).toEqual(['1967'])
+  })
+
+  it('lists every criterion that is set', () => {
+    expect(
+      describeFilter(filter({ minDetail: 5, toYear: 1979, coverage: 'full', printHeldOnly: true })),
+    ).toEqual(['1:2,500 or finer', 'up to 1979', 'covering all of your site', 'print held'])
+  })
+})
+
+describe('describeUnjudged', () => {
+  it('says nothing when every frame on screen was tested', () => {
+    expect(describeUnjudged([], 0)).toBeNull()
+    expect(describeUnjudged(['detail'], 0)).toBeNull()
+  })
+
+  it('names the reason a frame was kept without being tested', () => {
+    // The alternative is a narrowed listing whose every row looks like it passed every filter.
+    expect(describeUnjudged(['detail'], 1)).toBe(
+      '1 frame is shown without being tested: an oblique carries no scale to judge detail by.',
+    )
+  })
+
+  it('joins several reasons into one sentence', () => {
+    expect(describeUnjudged(['detail', 'date', 'print'], 4)).toBe(
+      '4 frames are shown without being tested: an oblique carries no scale to judge detail by, ' +
+        'some rows give no date and some rows carry a “held” code this app does not recognise.',
+    )
   })
 })
 

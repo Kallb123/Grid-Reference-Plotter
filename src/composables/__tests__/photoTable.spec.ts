@@ -13,13 +13,7 @@ import { buildFootprint, buildObliquePoint } from '../../domain/footprint'
 import { gridToWgs84, parseGridRef } from '../../domain/osgb'
 import type { SiteCoverage } from '../../domain/coverage'
 import type { AreaOfInterest, ObliqueRecord, VerticalRecord } from '../../domain/types'
-import {
-  PHOTO_COLUMNS,
-  buildRows,
-  parseCatalogueDate,
-  photoColumns,
-  sortRows,
-} from '../photoTable'
+import { PHOTO_COLUMNS, buildRows, photoColumns, sortRows } from '../photoTable'
 import type { PhotoColumnKey, PhotoRow } from '../photoTable'
 
 function vertical(overrides: Partial<VerticalRecord> = {}): VerticalRecord {
@@ -371,24 +365,5 @@ describe('sortRows', () => {
     sortRows(rows, 'frame')
 
     expect(rows.map((row) => row.id)).toEqual(['b', 'a'])
-  })
-})
-
-describe('parseCatalogueDate', () => {
-  it('reads the archive’s dd MMM yyyy', () => {
-    expect(parseCatalogueDate('13 JUN 1967')).toBe(Date.UTC(1967, 5, 13))
-    expect(parseCatalogueDate('01 JUL 2008')).toBe(Date.UTC(2008, 6, 1))
-    // Case and stray whitespace are the report template's business, not the ordering's.
-    expect(parseCatalogueDate(' 3 sep 1971 ')).toBe(Date.UTC(1971, 8, 3))
-    expect(parseCatalogueDate('12 September 1971')).toBe(Date.UTC(1971, 8, 12))
-  })
-
-  it('refuses anything that is not a date in that form', () => {
-    // Handing these to `Date` would get a plausible wrong answer out of some of them.
-    expect(parseCatalogueDate('')).toBeNull()
-    expect(parseCatalogueDate('1967')).toBeNull()
-    expect(parseCatalogueDate('13/06/1967')).toBeNull()
-    expect(parseCatalogueDate('13 JUX 1967')).toBeNull()
-    expect(parseCatalogueDate('31 FEB 1967')).toBeNull()
   })
 })

@@ -1,29 +1,85 @@
 <script setup lang="ts">
 /**
- * ARCHITECTURE.md §9.6: drop a supplier workbook, see the frames drawn, mark the site you want
- * photographs of, and compare the frames by how well they cover it.
+ * ARCHITECTURE.md §9.6–7: drop a supplier workbook, see the frames drawn, mark the site you want
+ * photographs of, compare the frames by how well they cover it, and narrow fifty of them to the
+ * handful worth ordering.
  *
- * Two composables hold everything. `usePhotoSet` is the supplier's side — the file, the frames it
- * yielded, and which one is selected or hovered; `useAreaOfInterest` is the user's — the site, and
- * what every frame does about it. Both are shared rather than owned by a view, because the map and
- * the table show the same frames and each has to react to what the user does in the other: a row
- * lights up its polygon, a polygon clicked on the map scrolls its row into view, and a site drawn
- * on the map reorders the table.
+ * Three composables hold everything. `usePhotoSet` is the supplier's side — the file, the frames
+ * it yielded, and which one is selected or hovered; `useAreaOfInterest` is the user's — the site,
+ * and what every frame does about it; `useFrameFilter` is what they asked the wizard for. All
+ * three are shared rather than owned by a view, because the map and the table show the same
+ * frames and each has to react to what the user does in the other: a row lights up its polygon, a
+ * polygon clicked on the map scrolls its row into view, a site drawn on the map reorders the
+ * table, and an answer given to the wizard narrows both at once.
  */
 
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import AreaOfInterestPanel from './components/AreaOfInterestPanel.vue'
 import BrandLockup from './components/BrandLockup.vue'
 import FileDrop from './components/FileDrop.vue'
+import FrameWizard from './components/FrameWizard.vue'
 import IssueList from './components/IssueList.vue'
 import MapView from './components/MapView.vue'
 import PhotoDetail from './components/PhotoDetail.vue'
 import PhotoTable from './components/PhotoTable.vue'
+import { plotBounds } from './domain/bounds'
 import { useAreaOfInterest } from './composables/useAreaOfInterest'
+import { useFrameFilter } from './composables/useFrameFilter'
 import { usePhotoSet } from './composables/usePhotoSet'
 
 const photos = usePhotoSet()
 const site = useAreaOfInterest(photos.footprints, photos.points)
+const filter = useFrameFilter(photos.footprints, photos.points, site.coverage)
+
+/**
+ * The two filters are one predicate by the time a view sees them.
+ *
+ * The wizard's answers and the site panel's "leave out the misses" tick both narrow the same
+ * listing, and a row has to satisfy both to be worth a line. The map takes the same decision as
+ * a set of ids, because Leaflet needs to be told which layers to take off rather than asked
+ * about each one.
+ */
+const keep = (id: string): boolean => filter.keep(id) && site.keep(id)
+
+/**
+ * Frame what is on the map, not what was in the file.
+ *
+ * "Fit to frames" on a listing narrowed to three frames should show those three. The map is not
+ * reframed when the filter changes — that would yank the view out from under someone dragging a
+ * slider — so this only takes effect when the button is pressed or a new file is loaded.
+ */
+const visibleBounds = computed(() =>
+  plotBounds(
+    photos.footprints.value.filter((footprint) => filter.keep(footprint.record.id)),
+    photos.points.value.filter((point) => filter.keep(point.record.id)),
+  ),
+)
+
+/**
+ * Frames that miss the site and are still on screen.
+ *
+ * Counted over what the wizard has left rather than over the whole listing, so the site panel
+ * never offers to drop frames the wizard has already taken away. Deliberately blind to the tick
+ * itself: counting what *it* has hidden would take the count to zero the moment it was ticked,
+ * and the control would disappear with no way to untick it.
+ */
+const visibleMissCount = computed(() => {
+  const measured = site.coverage.value
+  if (measured === null) return 0
+
+  let count = 0
+  for (const [id, frame] of measured.frames) {
+    if (frame.verdict === 'none' && filter.keep(id)) count += 1
+  }
+  return count
+})
+
+// A frame the user has just filtered away cannot stay selected: the detail panel would go on
+// describing a frame that is no longer on the map, and the map would have nothing to highlight.
+watch(filter.hiddenIds, (hidden) => {
+  const id = photos.selectedId.value
+  if (id !== null && hidden.has(id)) photos.select(null)
+})
 
 const counts = computed(() => {
   const parts: string[] = []
@@ -70,11 +126,27 @@ const counts = computed(() => {
         :coverage="site.coverage.value"
         :draw-mode="site.drawMode.value"
         :hide-misses="site.hideMisses.value"
+        :miss-count="visibleMissCount"
         :has-frames="!photos.isEmpty.value"
         @begin="site.begin"
         @cancel-draw="site.cancelDrawing"
         @clear="site.clear"
         @update:hide-misses="site.hideMisses.value = $event"
+      />
+
+      <FrameWizard
+        :filter="filter.filter.value"
+        :available="filter.available.value"
+        :is-active="filter.isActive.value"
+        :matched="filter.matched.value"
+        :total="filter.total.value"
+        :unjudged="filter.unjudged.value"
+        :unjudged-count="filter.unjudgedCount.value"
+        :years="filter.years.value"
+        :frames-at-least-detail="filter.framesAtLeastDetail.value"
+        :scale-span="filter.scaleSpan.value"
+        @change="filter.set"
+        @clear="filter.clear"
       />
 
       <PhotoDetail :selection="photos.selected.value" :coverage="site.coverage.value" />
@@ -92,9 +164,10 @@ const counts = computed(() => {
       <MapView
         :footprints="photos.footprints.value"
         :points="photos.points.value"
-        :bounds="photos.bounds.value"
+        :bounds="visibleBounds"
         :selected-id="photos.selectedId.value"
         :hovered-id="photos.hoveredId.value"
+        :hidden-ids="filter.hiddenIds.value"
         :area="site.area.value"
         :coverage="site.coverage.value"
         :draw-mode="site.drawMode.value"
@@ -112,7 +185,7 @@ const counts = computed(() => {
         :selected-id="photos.selectedId.value"
         :hovered-id="photos.hoveredId.value"
         :coverage="site.coverage.value"
-        :keep="site.keep"
+        :keep="keep"
         @select="photos.select"
         @hover="photos.hover"
       />

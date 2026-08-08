@@ -23,7 +23,10 @@ const props = defineProps<{
   selectedId: string | null
   hoveredId: string | null
   coverage: SiteCoverage | null
-  /** Which rows survive the "leave out the misses" filter, decided in `useAreaOfInterest`. */
+  /**
+   * Which rows survive the filters — the wizard's answers and the "leave out the misses" tick.
+   * Both are decided outside this component, in `useFrameFilter` and `useAreaOfInterest`.
+   */
   keep: (id: string) => boolean
 }>()
 
@@ -154,7 +157,7 @@ watch(
       <h2 class="table__title">
         {{ rows.length }} frame{{ rows.length === 1 ? '' : 's' }}
         <span v-if="hiddenCount > 0" class="table__order">
-          — {{ hiddenCount }} that {{ hiddenCount === 1 ? 'misses' : 'miss' }} the site left out
+          — {{ hiddenCount }} left out by your filters
         </span>
         <span v-else-if="sortKey === null" class="table__order">in listing order</span>
       </h2>

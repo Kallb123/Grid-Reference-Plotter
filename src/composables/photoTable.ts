@@ -12,6 +12,7 @@
  */
 
 import { formatNumber, formatSquareKm } from './photoSummary'
+import { parseCatalogueDate } from '../domain/catalogueDate'
 import type { FrameCoverage, SiteCoverage } from '../domain/coverage'
 import type { Footprint, PlottedPoint } from '../domain/types'
 
@@ -262,30 +263,6 @@ function heldCell(held: string | undefined): { held: PhotoCell } {
   if (held === undefined || held.trim() === '') return { held: { text: ABSENT, sort: null } }
   return { held: { text: held, sort: held } }
 }
-
-/**
- * `"13 JUN 1967"` → a UTC timestamp, or `null` if it is not a date in that form.
- *
- * Deliberately narrow: this parses the `dd MMM yyyy` the archive documents and nothing else,
- * rather than handing an arbitrary string to `Date` and getting a plausible wrong answer out of
- * whatever the host happens to accept. An unrecognised date still displays as supplied; it just
- * sorts last.
- */
-export function parseCatalogueDate(text: string): number | null {
-  const match = /^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/.exec(text.trim())
-  if (match === null) return null
-
-  const [, day = '', monthName = '', year = ''] = match
-  const month = MONTHS.indexOf(monthName.slice(0, 3).toUpperCase())
-  if (month < 0) return null
-
-  const dayOfMonth = Number(day)
-  const timestamp = Date.UTC(Number(year), month, dayOfMonth)
-  // `Date.UTC` rolls 31 FEB forward into March rather than rejecting it.
-  return new Date(timestamp).getUTCDate() === dayOfMonth ? timestamp : null
-}
-
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
 /**
  * Order rows by one column, leaving the listing's own order when no column is chosen.
